@@ -722,13 +722,13 @@ class BlockCoordinateOptimizer(Optimizer):
             # Clean the optimizer state
             self.base_optimizer.state = defaultdict(lambda: {})
         
-        for n, p in self.named_parameters_list :
-            if p not in self.lp_to_hp:
-                continue
-            print(f"{n}:")
-            hp = self.lp_to_hp[p]
-            for key, value in self.base_optimizer.state[hp].items() :
-                self.base_optimizer.state[hp][key] = value.to(dtype=torch.float16).to(dtype=torch.float32)
+        # for n, p in self.named_parameters_list :
+        #     if p not in self.lp_to_hp:
+        #         continue
+        #     print(f"{n}:")
+        #     hp = self.lp_to_hp[p]
+        #     for key, value in self.base_optimizer.state[hp].items() :
+        #         self.base_optimizer.state[hp][key] = value.to(dtype=torch.float16).to(dtype=torch.float32)
                 # print(n, p.requires_grad, key, value.device, value.dtype, value.shape)
 
         # print("end: ")
