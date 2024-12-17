@@ -1,0 +1,41 @@
+name: roberta_base_lora_adamw_stsb_target[all]
+project: bcd_bench_stsb
+command:
+  - ${interpreter}
+  - ${program}
+  - ${args}
+  - --model_name_or_path=roberta-base
+  - --task_name=stsb
+  - --lora=True
+  - --lora_r=16
+  - --lora_alpha=16
+  - --lora_target=all
+  - --optimizer=adamw
+  - --seed=42
+  - --report_to=wandb
+  - --per_device_train_batch_size=16
+  - --gradient_accumulation_steps=1
+  - --max_seq_length=512
+  - --eval_strategy=epoch
+  - --save_strategy=no
+  - --num_train_epochs=10
+  - --output_dir=experiments/glue_finetuning/results/Adam/stsb/
+  - --fp16=True
+  - --do_eval=True
+  - --do_train=True 
+  - --do_predict=False
+  - --logging_steps=1
+  - --save_total_limit=0
+  - --report_to=wandb
+  - --pad_to_max_length=False
+  - --overwrite_output_dir=True
+method: grid
+parameters:
+  learning_rate:
+    values:
+      - 5e-4
+  weight_decay:
+    values:
+      - 0
+
+program: experiments/glue_finetuning/run_glue.py

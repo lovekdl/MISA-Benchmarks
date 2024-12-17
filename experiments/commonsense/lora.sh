@@ -1,0 +1,29 @@
+python -u experiments/commonsense/finetune.py \
+    --model_name_or_path meta-llama/Meta-Llama-3-8B \
+    --dataset_path datasets/openbookqa\
+    --task_name openbookqa \
+    --do_train True \
+    --do_eval True\
+    --do_predict False \
+    --per_device_train_batch_size 1 \
+    --per_device_eval_batch_size 1 \
+    --lora True \
+    --lora_target q_proj,v_proj,k_proj,o_proj \
+    --optimizer adamw \
+    --lora_r 16 \
+    --lora_alpha 16 \
+    --seed 42 \
+    --fp16 \
+    --gradient_accumulation_steps 1 \
+    --num_train_epochs 5 \
+    --learning_rate 3e-4 \
+    --lr_scheduler_type cosine\
+    --max_seq_length 512 \
+    --logging_steps 1 \
+    --save_total_limit 0 \
+    --evaluation_strategy epoch \
+    --save_strategy no \
+    --overwrite_output_dir \
+    --output_dir result/lora/test  \
+    --report_to wandb \
+    --pad_to_max_length False \

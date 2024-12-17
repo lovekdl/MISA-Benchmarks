@@ -1,0 +1,44 @@
+name: roberta_base_lora_adamw_rte_target[all]
+project: bcd_bench_rte
+command:
+  - ${interpreter}
+  - ${program}
+  - ${args}
+  - --model_name_or_path=roberta-base
+  - --task_name=rte
+  - --lora=True
+  - --lora_r=16
+  - --lora_alpha=16
+  - --lora_target=query,key,value,attention.output.dense,intermediate.dense,0.output.dense,1.output.dense,2.output.dense,3.output.dense,4.output.dense,5.output.dense,6.output.dense,7.output.dense,8.output.dense,9.output.dense,10.output.dense,11.output.dense,12.output.dense,13.output.dense,14.output.dense,15.output.dense,16.output.dense,17.output.dense,18.output.dense,19.output.dense,20.output.dense,21.output.dense,22.output.dense,23.output.dense
+  - --optimizer=adamw
+  - --seed=42
+  - --report_to=wandb
+  - --per_device_train_batch_size=16
+  - --gradient_accumulation_steps=1
+  - --max_seq_length=512
+  - --eval_strategy=epoch
+  - --save_strategy=no
+  - --num_train_epochs=20
+  - --output_dir=experiments/glue_finetuning/results/Adam/rte/
+  - --do_eval=True
+  - --do_train=True 
+  - --do_predict=False
+  - --logging_steps=1
+  - --save_total_limit=0
+  - --report_to=wandb
+  - --pad_to_max_length=False
+  - --overwrite_output_dir=True
+  - --fp16=True
+method: grid
+parameters:
+  learning_rate:
+    values:
+      - 5e-4
+      - 3e-4
+      - 1e-4
+      - 5e-5
+  weight_decay:
+    values:
+      - 0
+
+program: experiments/glue_finetuning/run_glue.py

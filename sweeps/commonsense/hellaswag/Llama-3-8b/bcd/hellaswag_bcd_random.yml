@@ -1,0 +1,48 @@
+name: llama-3-8b_bcd_adamw_hellaswag_target[all]
+project: bcd_bench_hellaswag
+command:
+  - ${interpreter}
+  - ${program}
+  - ${args}
+  - --model_name_or_path=meta-llama/Meta-Llama-3-8B
+  - --task_name=hellaswag
+  - --bcd_target_attn=True
+  - --bcd_target_mlp=True
+  - --optimizer=bcd-optimizer
+  - --bcd_update_order=random
+  - --bcd_activated_layers=1
+  - --bcd_interval_steps=10
+  - --dataset_path=datasets/hellaswag
+  - --task_name=hellaswag
+  - --seed=42
+  - --report_to=wandb
+  - --per_device_train_batch_size=4
+  - --per_device_eval_batch_size=1 
+  - --gradient_accumulation_steps=1
+  - --max_seq_length=512
+  - --save_strategy=no
+  - --num_train_epochs=5
+  - --eval_strategy=epoch
+  - --output_dir=experiments/glue_finetuning/results/Adam/hellaswag/
+  - --do_eval=True
+  - --do_train=True 
+  - --do_predict=False
+  - --logging_steps=1
+  - --save_total_limit=0
+  - --report_to=wandb
+  - --pad_to_max_length=False
+  - --overwrite_output_dir=True
+  - --lr_scheduler_type=cosine
+method: grid
+parameters:
+  learning_rate:
+    values:
+      - 1e-5
+      - 7e-6
+      - 5e-6
+      - 2e-6
+  weight_decay:
+    values:
+      - 0
+
+program: experiments/commonsense/finetune.py

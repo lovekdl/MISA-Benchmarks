@@ -1,0 +1,72 @@
+from typing import List, Optional, Union
+import wandb
+from dataclasses import dataclass, field
+from transformers import TrainingArguments
+@dataclass
+class CustomizedTrainingArguments(TrainingArguments) :
+    # optimizer : str = 'adamw'
+    optimizer: Optional[str] = field(
+        default='adamw',
+        metadata = {
+            "help": ""
+        },
+    )
+    grad_importance_exp: Optional[float] = field(
+        default=1,
+        metadata = {
+            "help": ""
+        },
+    )
+
+    bcd_activated_layers: Optional[int] = field(
+        default=1,
+        metadata = {
+            "help": ""
+        },
+    )
+
+    bcd_interval_steps: Optional[int] = field(
+        default=30,
+        metadata = {
+            "help": ""
+        },
+    )
+    bcd_update_order: Optional[str] = field(
+        default='ascending',
+        metadata = {
+            "help": ""
+        },
+    )
+    bcd_target_attn: bool = field(
+        default=True,
+        metadata={"help": ""},
+    )
+    bcd_target_mlp: bool = field(
+        default=True,
+        metadata={"help": ""},
+    )
+    bcd_base_optimizer:str = field(
+        default='adamw',
+        metadata={"help": ""},
+    )
+    only_layer:Optional[int] = field(
+        default=-1,
+        metadata={"help": ""},
+    )
+    offload_optimizer_state:Optional[bool] = field(
+        default=False,
+        metadata={"help": ""}
+    )
+    bcd_suffix_start_index:Optional[int] = field(
+        default=0,
+        metadata={"help": ""} ,
+    )
+    offload_rank:Optional[int]=field(
+        default=-1,
+        metadata={"help":""},
+    )
+    offload_quantization_bit:Optional[int]=field(
+        default=-1,
+        metadata={"help":""},
+    )
+
