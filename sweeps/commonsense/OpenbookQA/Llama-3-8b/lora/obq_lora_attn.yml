@@ -9,7 +9,7 @@ command:
   - --dataset_path=datasets/openbookqa
   - --task_name=openbookqa
   - --lora=True
-  - --lora_r=16
+  - --lora_r=8
   - --lora_alpha=16
   - --lora_target=q_proj,k_proj,v_proj,o_proj
   - --optimizer=adamw
