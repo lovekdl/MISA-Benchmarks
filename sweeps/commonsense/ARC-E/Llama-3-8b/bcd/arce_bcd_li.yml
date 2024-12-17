@@ -14,7 +14,7 @@ command:
   - --optimizer=bcd-optimizer
   - --bcd_activated_layers=1
   - --grad_importance_exp=0.5
-  - --bcd_interval_steps=10
+  - --bcd_interval_steps=30
   - --offload_optimizer_state=True
   - --seed=42
   - --report_to=wandb
