@@ -12,6 +12,7 @@ command:
   - --task_name=openbookqa
   - --optimizer=bcd-optimizer
   - --bcd_update_order=shuffling
+  - --bcd_interval_steps=30
   - --bcd_activated_layers=1
   - --seed=42
   - --report_to=wandb
