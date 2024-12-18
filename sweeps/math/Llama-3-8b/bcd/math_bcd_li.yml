@@ -12,7 +12,7 @@ command:
   - --dataset_path=datasets/Math10k
   - --task_name=math
   - --optimizer=bcd-optimizer
-  - --bcd_activated_layers=2
+  - --bcd_activated_layers=1
   - --grad_importance_exp=0.5
   - --offload_optimizer_state=True
   - --bcd_interval_steps=30
