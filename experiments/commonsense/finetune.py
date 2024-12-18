@@ -634,15 +634,6 @@ def main() :
                 **peft_kwargs,
             )
         model = get_peft_model(model, lora_config)
-        trainable = 0
-        ntrainable = 0
-        for n,p in model.named_parameters() :
-            print(n, p.requires_grad, p.numel())
-            if p.requires_grad :
-                trainable += p.numel()
-            else: ntrainable += p.numel()
-        for i in range(10):
-            print(f"Trainable parameters: {trainable} / {ntrainable}")
 
             # if model.config.model_type == "llama":
             #     tokenizer = LlamaTokenizer.from_pretrained(model_args.model_name_or_path)
@@ -655,6 +646,17 @@ def main() :
         tokenizer.padding_side = "left"  # Allow batched inference
 
     
+    trainable = 0
+    ntrainable = 0
+    for n,p in model.named_parameters() :
+        print(n, p.requires_grad, p.numel())
+        if p.requires_grad :
+            trainable += p.numel()
+        else: ntrainable += p.numel()
+    for i in range(10):
+        print(f"Trainable parameters: {trainable} / {ntrainable}")
+    
+    wandb.log({"trainable_param_ratio": trainable / (ntrainable+trainable)})
     
     def tokenize( prompt, add_eos_token=True):
         # there's probably a way to do this with the tokenizer settings
