@@ -761,5 +761,7 @@ class BlockCoordinateOptimizer(Optimizer):
                 untranable += p.numel()
         print(f"{trainable}/{trainable+untranable}  =  {trainable/(trainable+untranable)}")
 
+        wandb.log({"trainable_param_ratio":  trainable/(trainable+untranable)})
+
 
 
