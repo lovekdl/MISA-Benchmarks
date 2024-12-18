@@ -1,11 +1,11 @@
 name: llama-3-8b_bcd_adamw_ARC-Easy_target[all]
-project: bcd_bench_obq
+project: bcd_bench_ARC-Easy
 command:
   - ${interpreter}
   - ${program}
   - ${args}
   - --model_name_or_path=meta-llama/Meta-Llama-3-8B
-  - --task_name=obq
+  - --task_name=ARC-Easy
   - --bcd_target_attn=True
   - --bcd_target_mlp=True
   - --optimizer=bcd-optimizer
@@ -23,7 +23,7 @@ command:
   - --save_strategy=no
   - --num_train_epochs=5
   - --eval_strategy=epoch
-  - --output_dir=experiments/glue_finetuning/results/Adam/obq/
+  - --output_dir=experiments/glue_finetuning/results/Adam/ARC-Easy/
   - --do_eval=True
   - --do_train=True 
   - --do_predict=False

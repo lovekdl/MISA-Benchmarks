@@ -13,7 +13,7 @@ python -u experiments/commonsense/finetune.py \
     --seed 42 \
     --gradient_accumulation_steps 1 \
     --num_train_epochs 5 \
-    --learning_rate 1e-5 \
+    --learning_rate 5e-6 \
     --lr_scheduler_type cosine\
     --max_seq_length 512 \
     --logging_steps 1 \

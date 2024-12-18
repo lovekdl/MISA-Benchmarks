@@ -15,7 +15,7 @@ command:
   - --bcd_activated_layers=1
   - --grad_importance_exp=0.5
   - --offload_optimizer_state=True
-  - --bcd_interval_steps=10
+  - --bcd_interval_steps=30
   - --seed=42
   - --report_to=wandb
   - --per_device_train_batch_size=4

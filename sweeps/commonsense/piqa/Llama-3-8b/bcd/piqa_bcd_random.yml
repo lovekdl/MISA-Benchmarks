@@ -11,7 +11,7 @@ command:
   - --optimizer=bcd-optimizer
   - --bcd_update_order=random
   - --bcd_activated_layers=1
-  - --bcd_interval_steps=10
+  - --bcd_interval_steps=30
   - --dataset_path=datasets/piqa
   - --task_name=piqa
   - --seed=42
