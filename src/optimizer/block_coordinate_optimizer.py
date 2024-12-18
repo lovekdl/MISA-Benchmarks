@@ -333,7 +333,8 @@ class BlockCoordinateOptimizer(Optimizer):
             is_layer_param = False
             for i in range(self.total_layers) :
                 if(self.block_prefix_list[i][0] in name) :
-                    self.current_grad_norms[i].append(current_grad_norm)
+                    # self.current_grad_norms[i].append(current_grad_norm)
+                    self.current_grad_norms[i].append(t_gradnorm)
                     self.t_grad_norms[i].append(t_gradnorm)
                     is_layer_param = True
                     break

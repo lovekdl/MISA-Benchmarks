@@ -49,11 +49,12 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
         self.save_file =  f"{self.args.output_dir}/eval.json"
 
         self.batches = self.create_batch(test_dataset, args.per_device_eval_batch_size if args.per_device_eval_batch_size else args.per_device_train_batch_size )
-        
+        self.epoch = 0
 
     def on_epoch_end(self, args, state, control, **kwargs):
         if self.eval_strategy != 'epoch' :
             return
+        self.epoch += 1
         self.evaluate()
     # def on_train_begin(self, args, state, control, **kwargs):
     #     self.evaluate()
@@ -221,6 +222,7 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
 
         self.save_file =  f"{self.args.output_dir}/eval.json"
         self.batches = {}
+        self.epoch = 0
         for n, d in test_dataset.items() :
 
             self.batches[n] = self.create_batch(d, args.per_device_eval_batch_size if args.per_device_eval_batch_size else 1 )
@@ -230,7 +232,9 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
     def on_epoch_end(self, args, state, control, **kwargs):
         if self.eval_strategy != 'epoch' :
             return
-        self.evaluate()
+        self.epoch += 1 
+        if self.epoch % 3 == 0:
+            self.evaluate()
     # def on_train_begin(self, args, state, control, **kwargs):
     #     self.evaluate()
     #     exit(0)
