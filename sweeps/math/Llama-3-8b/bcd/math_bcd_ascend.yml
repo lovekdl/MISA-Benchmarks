@@ -10,18 +10,18 @@ command:
   - --bcd_target_mlp=True
   - --optimizer=bcd-optimizer
   - --bcd_update_order=ascending
-  - --bcd_activated_layers=1
+  - --bcd_activated_layers=2
   - --bcd_interval_steps=30
   - --dataset_path=datasets/Math10k
   - --task_name=math
   - --seed=42
   - --report_to=wandb
-  - --per_device_train_batch_size=2
+  - --per_device_train_batch_size=1
   - --per_device_eval_batch_size=1 
-  - --gradient_accumulation_steps=1
+  - --gradient_accumulation_steps=4
   - --max_seq_length=512
   - --save_strategy=no
-  - --num_train_epochs=5
+  - --num_train_epochs=3
   - --eval_strategy=epoch
   - --output_dir=experiments/glue_finetuning/results/Adam/math/
   - --do_eval=True
@@ -37,7 +37,6 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 5e-6
       - 1e-5
   weight_decay:
     values:
