@@ -640,7 +640,7 @@ def main() :
                 trainable += p.numel()
             else: ntrainable += p.numel()
         for i in range(10):
-            print(f"Trainable parameters: {trainable} / {ntrainable}")
+            print(f"Trainable parameters: {trainable} / {ntrainable+ trainable}")
 
             # if model.config.model_type == "llama":
             #     tokenizer = LlamaTokenizer.from_pretrained(model_args.model_name_or_path)

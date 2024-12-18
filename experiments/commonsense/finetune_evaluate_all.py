@@ -654,7 +654,7 @@ def main() :
             trainable += p.numel()
         else: ntrainable += p.numel()
     for i in range(10):
-        print(f"Trainable parameters: {trainable} / {ntrainable}")
+        print(f"Trainable parameters: {trainable} / {ntrainable + trainable}")
     
     wandb.log({"trainable_param_ratio": trainable / (ntrainable+trainable)})
     
@@ -765,7 +765,7 @@ def main() :
     else:
         data = load_dataset(data_args.dataset_path)
     train_data = data["train"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
-    test_names = ['openbookqa', 'boolq', 'piqa', 'siqa', 'hellaswag', 'winogrande', 'ARC-Challenge', 'ARC-Easy']
+    test_names = ['openbookqa', 'boolq', 'piqa', 'siqa', 'hellaswag', 'winogrande', 'ARC-Easy', 'ARC-Challenge']
     test_data = {}
     for n in test_names:
         test_d = load_dataset(f'datasets/{n}')
