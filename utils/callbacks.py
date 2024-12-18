@@ -40,6 +40,9 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
         super().__init__()
         self.model = model
         self.tokenizer = tokenizer
+
+        if not isinstance(test_dataset, dict) :
+            test_dataset = {dataset_name: test_dataset}
         self.test_dataset = test_dataset
         self.dataset_name = dataset_name
         self.args = args
@@ -47,18 +50,25 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
         self.eval_strategy = eval_strategy
 
         self.save_file =  f"{self.args.output_dir}/eval.json"
-
-        self.batches = self.create_batch(test_dataset, args.per_device_eval_batch_size if args.per_device_eval_batch_size else args.per_device_train_batch_size )
+        self.batches = {}
         self.epoch = 0
+        for n, d in test_dataset.items() :
+
+            self.batches[n] = self.create_batch(d, args.per_device_eval_batch_size if args.per_device_eval_batch_size else 1 )
+        
+
 
     def on_epoch_end(self, args, state, control, **kwargs):
         if self.eval_strategy != 'epoch' :
             return
+        
         self.epoch += 1
+        # if self.epoch % 3 == 0:
+            # self.evaluate()
+    
+    def on_train_end(self, args, state, control, **kwargs):
         self.evaluate()
-    # def on_train_begin(self, args, state, control, **kwargs):
-    #     self.evaluate()
-    #     exit(0)
+
     def on_step_end(self, args, state, control, **kwargs):
 
         # self.evaluate()
@@ -66,50 +76,49 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
             return
         if state.global_step % self.args.eval_steps :
             return
-        self.evaluate()
     
     def evaluate(self) :
-        batches = self.batches
-        total = len(batches)
-        correct = 0
-        current = 0
-        output_data = []
-        pbar = tqdm(total=total)
+        for name, batches in self.batches.items() :
 
-        for idx, batch in enumerate(batches):
-            
-            outputs = self.batch_generate(batch)
-            data_answer = batch['answer']
-            l = len(data_answer)
-            current += l
-
-            for i in range(len(data_answer)):
-                label = data_answer[i]
-                output = outputs[i]
-                flag = False
-                predict = self.extract_answer(output)
-                if label == predict:
-                    correct += 1
-                    flag = True
-                new_data = {'label':label}
-                new_data['output_pred'] = output
-                new_data['pred'] = predict
-                new_data['flag'] = flag
-                output_data.append(new_data)
-                # print(data["instruction"])
-                # print(output)
+            total = len(batches)
+            correct = 0
+            current = 0
+            output_data = []
+            pbar = tqdm(total=total)
+            for idx, batch in enumerate(batches):
                 
-                print('prediction:', predict)
-                print('label:', label)
-            print('---------------')
-            print(f'\rtest:{idx + 1}/{total} | accuracy {correct}  {correct / current}')
-            print('---------------')
-            with open(self.save_file, 'w+') as f:
-                json.dump(output_data, f, indent=4)
-            pbar.update(1)
+                outputs = self.batch_generate(batch)
+                data_answer = batch['answer']
+                l = len(data_answer)
+                current += l
 
-        self.trainer.log({"eval_accuracy": correct / current ,})
-        wandb.log({"eval_accuracy": correct / current ,})
+                for i in range(len(data_answer)):
+                    label = data_answer[i]
+                    output = outputs[i]
+                    flag = False
+                    predict = self.extract_answer(output)
+                    if label == predict:
+                        correct += 1
+                        flag = True
+                    new_data = {'label':label}
+                    new_data['output_pred'] = output
+                    new_data['pred'] = predict
+                    new_data['flag'] = flag
+                    output_data.append(new_data)
+                    # print(data["instruction"])
+                    # print(output)
+                    
+                    print('prediction:', predict)
+                    print('label:', label)
+                print('---------------')
+                print(f'\r{name}_test:{idx + 1}/{total} | accuracy {correct}  {correct / current}')
+                print('---------------')
+                with open(self.save_file, 'w+') as f:
+                    json.dump(output_data, f, indent=4)
+                pbar.update(1)
+
+        self.trainer.log({f"{name}_accuracy": correct / current ,})
+        wandb.log({f"{name}_accuracy": correct / current ,})
             
         pbar.close()
         print('\n')
@@ -233,8 +242,12 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
         if self.eval_strategy != 'epoch' :
             return
         self.epoch += 1 
-        if self.epoch % 3 == 0:
-            self.evaluate()
+        # if self.epoch % 3 == 0:
+        #     self.evaluate()
+        
+    def on_train_end(self, args, state, control, **kwargs):
+        self.evaluate()
+
     # def on_train_begin(self, args, state, control, **kwargs):
     #     self.evaluate()
     #     exit(0)
