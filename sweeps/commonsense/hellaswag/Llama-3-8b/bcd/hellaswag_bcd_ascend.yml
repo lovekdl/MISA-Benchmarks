@@ -1,17 +1,17 @@
 name: llama-3-8b_bcd_adamw_hellaswag_target[all]
-project: bcd_bench_obq
+project: bcd_bench_hellaswag
 command:
   - ${interpreter}
   - ${program}
   - ${args}
   - --model_name_or_path=meta-llama/Meta-Llama-3-8B
-  - --task_name=obq
+  - --task_name=hellaswag
   - --bcd_target_attn=True
   - --bcd_target_mlp=True
   - --optimizer=bcd-optimizer
   - --bcd_update_order=ascending
   - --bcd_activated_layers=1
-  - --bcd_interval_steps=10
+  - --bcd_interval_steps=30
   - --dataset_path=datasets/hellaswag
   - --task_name=hellaswag
   - --seed=42
@@ -23,7 +23,7 @@ command:
   - --save_strategy=no
   - --num_train_epochs=5
   - --eval_strategy=epoch
-  - --output_dir=experiments/glue_finetuning/results/Adam/obq/
+  - --output_dir=experiments/glue_finetuning/results/Adam/hellaswag/
   - --do_eval=True
   - --do_train=True 
   - --do_predict=False

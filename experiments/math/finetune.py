@@ -755,15 +755,22 @@ def main() :
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"trainable_params: {trainable_params}, total_params: {total_params}")
 
+    # load train dataset
     if data_args.dataset_path.endswith(".json"):  # todo: support jsonl
         data = load_dataset("json", data_files=data_args.dataset_path)
     else:
         data = load_dataset(data_args.dataset_path)
     train_data = data["train"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
-    test_data = data["test"].shuffle(seed=training_args.seed).map(
-        generate_and_tokenize_prompt,
-        fn_kwargs={"with_answer":False}
-        )
+    
+    # load test dataset 
+    test_names = ['GSM8K', 'SVAMP', 'AddSub', 'AQuA', 'MultiArith', 'SingleEq']
+    test_data = {}
+    for n in test_names:
+        test_d = load_dataset(f'datasets/{n}')
+        test_data[n] = test_d["test"].shuffle(seed=training_args.seed).map(
+            generate_and_tokenize_prompt,
+            fn_kwargs={"with_answer":False}
+            )
 
 
 
@@ -787,10 +794,10 @@ def main() :
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),
         )
-    from utils.callbacks import MemoryTimeConsumptionCallback
+    from utils.callbacks import MemoryTimeConsumptionCallback, MathReasoningEvaluateCallback
     trainer.add_callback(MemoryTimeConsumptionCallback(trainer))
     if do_eval :  
-            trainer.add_callback(CommonsenseReasoningEvaluateCallback(
+            trainer.add_callback(MathReasoningEvaluateCallback(
                 trainer=trainer,
                 model=model,
                 tokenizer=tokenizer,

@@ -220,9 +220,12 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
         self.eval_strategy = eval_strategy
 
         self.save_file =  f"{self.args.output_dir}/eval.json"
+        self.batches = {}
+        for n, d in test_dataset.items() :
 
-        self.batches = self.create_batch(test_dataset, args.per_device_eval_batch_size if args.per_device_eval_batch_size else args.per_device_train_batch_size )
+            self.batches[n] = self.create_batch(d, args.per_device_eval_batch_size if args.per_device_eval_batch_size else 1 )
         
+
 
     def on_epoch_end(self, args, state, control, **kwargs):
         if self.eval_strategy != 'epoch' :
@@ -241,61 +244,62 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
         self.evaluate()
     
     def evaluate(self) :
-        batches = self.batches
-        total = len(batches)
-        correct = 0
-        current = 0
-        output_data = []
-        pbar = tqdm(total=total)
+        
 
-        for idx, batch in enumerate(batches):
-            
-            outputs = self.batch_generate(batch)
-            data_answer = batch['answer']
-            l = len(data_answer)
-            current += l
-
-            for i in range(len(data_answer)):
-                label = data_answer[i]
-                output = outputs[i]
-                eps = 0.001
-                flag = False
-                if self.args.task_name.lower() in ['aqua']:
-                    predict = self.extract_answer_letter(outputs)
-                    if label == predict:
-                        correct += 1
-                        flag = True
-                else:
-                    if isinstance(label, str):
-                        label = float(label)
-                    predict = self.extract_answer_number(outputs)
-                    if abs(label - predict) <= eps:
-                        correct += 1
-                        flag = True
-
-                new_data = {'label':label}
-                new_data['output_pred'] = output
-                new_data['pred'] = predict
-                new_data['flag'] = flag
-                output_data.append(new_data)
-                # print(data["instruction"])
-                # print(output)
+        for n, data_batches  in self.batches.items():
+            total = len(data_batches)
+            correct = 0
+            current = 0
+            output_data = []
+            pbar = tqdm(total=total)
+            for idx, batch in enumerate(data_batches):
                 
-                print('prediction:', predict)
-                print('label:', label)
-            print('---------------')
-            print(f'\rtest:{idx + 1}/{total} | accuracy {correct}  {correct / current}')
-            print('---------------')
-            with open(self.save_file, 'w+') as f:
-                json.dump(output_data, f, indent=4)
-            pbar.update(1)
+                outputs = self.batch_generate(batch)
+                data_answer = batch['answer']
+                l = len(data_answer)
+                current += l
 
-        self.trainer.log({"eval_accuracy": correct / current ,})
-        wandb.log({"eval_accuracy": correct / current ,})
-            
-        pbar.close()
-        print('\n')
-        print('test finished')
+                for i in range(len(data_answer)):
+                    label = data_answer[i]
+                    output = outputs[i]
+                    eps = 0.001
+                    flag = False
+                    if n.lower() in ['aqua']:
+                        predict = self.extract_answer_letter(output)
+                        if label == predict:
+                            correct += 1
+                            flag = True
+                    else:
+                        if isinstance(label, str):
+                            label = float(label)
+                        predict = self.extract_answer_number(n, output)
+                        if abs(label - predict) <= eps:
+                            correct += 1
+                            flag = True
+
+                    new_data = {'label':label}
+                    new_data['output_pred'] = output
+                    new_data['pred'] = predict
+                    new_data['flag'] = flag
+                    output_data.append(new_data)
+                    # print(data["instruction"])
+                    # print(output)
+                    print('output:', output)
+                    print('prediction:', predict)
+                    print('label:', label)
+                print('---------------')
+                print(f'\rtest[{n}]:{idx + 1}/{total} | accuracy {correct}  {correct / current}')
+                print('---------------')
+                with open(self.save_file, 'w+') as f:
+                    json.dump(output_data, f, indent=4)
+                pbar.update(1)
+
+            self.trainer.log({f"{n}_accuracy": correct / current ,})
+            wandb.log({f"{n}_accuracy": correct / current ,})
+                
+            pbar.close()
+            print('\n')
+            print(f'test{n} finished')
 
     def batch_generate(
             self,
@@ -304,7 +308,7 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
             # top_p=0.75,
             # top_k=40,
             # num_beams=4,
-            max_new_tokens=64,
+            max_new_tokens=512,
             **kwargs,
     ):
         # prompts = [generate_prompt(instruction, input) for instruction in instructions]
@@ -356,8 +360,8 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
             batches.append(batch)
         return batches
 
-    def extract_answer_number(self, sentence: str) -> float:
-        dataset = self.args.dataset.lower()
+    def extract_answer_number(self, n: str, sentence: str) -> float:
+        dataset = n.lower()
         if dataset in ["multiarith", "addsub", "singleeq", "gsm8k", "svamp"]:
             sentence = sentence.replace(',', '')
             pred = [s for s in re.findall(r'-?\d+\.?\d*', sentence)]
