@@ -10,7 +10,7 @@ command:
   - --bcd_target_mlp=True
   - --optimizer=bcd-optimizer
   - --bcd_update_order=random
-  - --bcd_activated_layers=2
+  - --bcd_activated_layers=1
   - --bcd_interval_steps=30
   - --dataset_path=datasets/Math10k
   - --task_name=math
