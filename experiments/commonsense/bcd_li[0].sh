@@ -1,7 +1,7 @@
 python -u experiments/commonsense/finetune_evaluate_all.py \
     --model_name_or_path meta-llama/Meta-Llama-3-8B \
-    --dataset_path datasets/commonsense170k\
-    --task_name commonsense \
+    --dataset_path datasets/openbookqa\
+    --task_name openbookqa \
     --do_train True \
     --do_eval True\
     --do_predict False \
@@ -13,7 +13,7 @@ python -u experiments/commonsense/finetune_evaluate_all.py \
     --optimizer bcd-optimizer \
     --grad_importance_exp 0 \
     --seed 42 \
-    --gradient_accumulation_steps 4 \
+    --gradient_accumulation_steps 1 \
     --num_train_epochs 3 \
     --learning_rate 1e-4 \
     --lr_scheduler_type linear\

@@ -1,5 +1,5 @@
 from datasets import load_dataset
 
 
-data = load_dataset('datasets/Math10k')
+data = load_dataset('datasets/mawps')
 print(data)

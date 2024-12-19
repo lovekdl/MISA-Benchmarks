@@ -770,7 +770,7 @@ def main() :
         test_data[n] = test_d["test"].shuffle(seed=training_args.seed).map(
             generate_and_tokenize_prompt,
             fn_kwargs={"with_answer":False}
-            )
+        )
 
 
 

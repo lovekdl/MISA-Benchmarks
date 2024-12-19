@@ -765,10 +765,12 @@ def main() :
     else:
         data = load_dataset(data_args.dataset_path)
     train_data = data["train"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
-    test_names = ['openbookqa', 'boolq', 'piqa', 'siqa', 'hellaswag', 'winogrande', 'ARC-Easy', 'ARC-Challenge']
+    test_names = ['piqa', 'openbookqa', 'boolq', 'siqa', 'hellaswag', 'winogrande', 'ARC-Easy', 'ARC-Challenge']
     test_data = {}
     for n in test_names:
         test_d = load_dataset(f'datasets/{n}')
+        # if n == 'piqa' :
+        #     print()
         test_data[n] = test_d["test"].shuffle(seed=training_args.seed).map(
             generate_and_tokenize_prompt,
             fn_kwargs={"with_answer":False}
