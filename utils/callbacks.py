@@ -65,7 +65,9 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
         self.epoch += 1
         # if self.epoch % 3 == 0:
             # self.evaluate()
-    
+    # def on_train_begin(self, args, state, control, **kwargs):
+    #     self.evaluate()
+    #     exit(0)
     def on_train_end(self, args, state, control, **kwargs):
         self.evaluate()
 
@@ -96,7 +98,7 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
                     label = data_answer[i]
                     output = outputs[i]
                     flag = False
-                    predict = self.extract_answer(output)
+                    predict = self.extract_answer(name, output)
                     if label == predict:
                         correct += 1
                         flag = True
@@ -106,7 +108,7 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
                     new_data['flag'] = flag
                     output_data.append(new_data)
                     # print(data["instruction"])
-                    # print(output)
+                    print(output)
                     
                     print('prediction:', predict)
                     print('label:', label)
@@ -171,7 +173,11 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
             )
         s = generation_output.sequences
         outputs = self.tokenizer.batch_decode(s, skip_special_tokens=True)
-        outputs = [o.split("### Response:")[1].strip() for o in outputs]
+        print("outputs:", outputs)
+        print()
+        outputs = [o.split("### Response:")[1].strip() if len(o.split("### Response:")) > 1 else "" for o in outputs]
+        print("outputs:", outputs)
+        print()
         return outputs
 
 
@@ -183,8 +189,9 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
             batches.append(batch)
         return batches
 
-    def extract_answer(self, sentence: str) -> float:
-        dataset = self.dataset_name
+    def extract_answer(self, n, sentence: str):
+        dataset = n
+        sentence = sentence.lower()
         if dataset == 'boolq':
             sentence_ = sentence.strip()
             pred_answers = re.findall(r'true|false', sentence_)
@@ -197,7 +204,7 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
             if not pred_answers:
                 return ""
             return pred_answers[0]
-        elif dataset in ['social_i_qa', 'ARC-Challenge', 'ARC-Easy', 'openbookqa']:
+        elif dataset in ['siqa', 'ARC-Challenge', 'ARC-Easy', 'openbookqa']:
             sentence_ = sentence.strip()
             pred_answers = re.findall(r'answer1|answer2|answer3|answer4|answer5', sentence_)
             if not pred_answers:
@@ -365,7 +372,7 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
             )
         s = generation_output.sequences
         outputs = self.tokenizer.batch_decode(s, skip_special_tokens=True)
-        outputs = [o.split("### Response:")[1].strip() for o in outputs]
+        outputs = [o.split("### Response:")[1].strip() if len(o.split("### Response:")) > 1 else "" for o in outputs]
         return outputs
 
 
@@ -379,7 +386,7 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
 
     def extract_answer_number(self, n: str, sentence: str) -> float:
         dataset = n.lower()
-        if dataset in ["multiarith", "addsub", "singleeq", "gsm8k", "svamp"]:
+        if dataset in ["multiarith", "addsub", "singleeq", "gsm8k", "svamp", 'mawps']:
             sentence = sentence.replace(',', '')
             pred = [s for s in re.findall(r'-?\d+\.?\d*', sentence)]
             if not pred:
