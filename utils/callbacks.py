@@ -69,6 +69,9 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
     #     self.evaluate()
     #     exit(0)
     def on_train_end(self, args, state, control, **kwargs):
+
+        self.trainer.save_model()
+    
         self.evaluate()
 
     def on_step_end(self, args, state, control, **kwargs):
@@ -87,6 +90,7 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
             current = 0
             output_data = []
             pbar = tqdm(total=total)
+            
             for idx, batch in enumerate(batches):
                 
                 outputs = self.batch_generate(batch)
@@ -155,18 +159,18 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
         attention_mask = attention_mask.to(device)
 
         # print(len(input_ids))
-        # generation_config = GenerationConfig(
-        #     temperature=temperature,
-        #     attention_mask=attention_mask,
-        #     top_p=top_p,
-        #     top_k=top_k,
-        #     num_beams=num_beams,
-        #     **kwargs,
-        # )
+        generation_config = GenerationConfig(
+                temperature=0.1,
+                attention_mask=attention_mask,
+                top_p=0.75,
+                top_k=40,
+                num_beams=4,
+                **kwargs,
+            )
         with torch.no_grad():
             generation_output = self.model.generate(
                 input_ids=input_ids,
-                # generation_config=generation_config,
+                generation_config=generation_config,
                 return_dict_in_generate=True,
                 output_scores=True,
                 max_new_tokens=max_new_tokens,
@@ -354,18 +358,18 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
         attention_mask = attention_mask.to(device)
 
         # print(len(input_ids))
-        # generation_config = GenerationConfig(
-        #     temperature=temperature,
-        #     attention_mask=attention_mask,
-        #     top_p=top_p,
-        #     top_k=top_k,
-        #     num_beams=num_beams,
-        #     **kwargs,
-        # )
+        generation_config = GenerationConfig(
+            temperature=0.1,
+            attention_mask=attention_mask,
+            top_p=0.75,
+            top_k=40,
+            num_beams=4,
+            **kwargs,
+        )
         with torch.no_grad():
             generation_output = self.model.generate(
                 input_ids=input_ids,
-                # generation_config=generation_config,
+                generation_config=generation_config,
                 return_dict_in_generate=True,
                 output_scores=True,
                 max_new_tokens=max_new_tokens,

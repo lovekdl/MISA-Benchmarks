@@ -560,6 +560,8 @@ def main() :
         data_args.task_name = data_args.dataset_path
 
     run_name = generate_tag(model_args, data_args, training_args)
+    import datetime
+    training_args.output_dir = f"save/{run_name}/{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}/"
 
     wandb.init(project='test_project', name=run_name)
 
@@ -819,7 +821,7 @@ def main() :
     )
     metrics["train_samples"] = min(max_train_samples, len(train_data))
 
-    # trainer.save_model()  # Saves the tokenizer too for easy upload
+    trainer.save_model()  # Saves the tokenizer too for easy upload
 
     trainer.log_metrics("train", metrics)
     trainer.save_metrics("train", metrics)

@@ -11,7 +11,7 @@ command:
   - --optimizer=bcd-optimizer
   - --bcd_update_order=random
   - --bcd_activated_layers=1
-  - --bcd_interval_steps=30
+  - --bcd_interval_steps=50
   - --dataset_path=datasets/commonsense170k
   - --task_name=commonsense
   - --seed=42
@@ -21,7 +21,7 @@ command:
   - --gradient_accumulation_steps=1
   - --max_seq_length=512
   - --save_strategy=no
-  - --num_train_epochs=5
+  - --num_train_epochs=3
   - --eval_strategy=epoch
   - --output_dir=experiments/glue_finetuning/results/Adam/commonsense/
   - --do_eval=True

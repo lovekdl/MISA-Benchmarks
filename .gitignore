@@ -8,3 +8,4 @@ wandb/
 checkpoints/
 
 nohup.out/
+save/
