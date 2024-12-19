@@ -21,7 +21,7 @@ command:
   - --max_seq_length=512
   - --eval_strategy=epoch
   - --save_strategy=no
-  - --num_train_epochs=5
+  - --num_train_epochs=3
   - --output_dir=experiments/glue_finetuning/results/Adam/commonsense/
   - --fp16=True
   - --do_eval=True
@@ -36,10 +36,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 3e-4
       - 1e-4
-      - 5e-4
-      - 5e-5
   weight_decay:
     values:
       - 0
