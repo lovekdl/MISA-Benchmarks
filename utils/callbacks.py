@@ -7,6 +7,7 @@ import json
 from tqdm import tqdm
 from transformers import GenerationConfig
 import re
+import os
 if torch.cuda.is_available():
     device = "cuda"
 else:
@@ -49,7 +50,8 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
         self.trainer = trainer 
         self.eval_strategy = eval_strategy
 
-        self.save_file =  f"{self.args.output_dir}/eval.json"
+        self.save_file =  f"{self.args.output_dir}"
+        print("save_file path is", self.save_file)
         self.batches = {}
         self.epoch = 0
         for n, d in test_dataset.items() :
@@ -119,14 +121,20 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
                 print('---------------')
                 print(f'\r{name}_test:{idx + 1}/{total} | accuracy {correct}  {correct / current}')
                 print('---------------')
-                with open(self.save_file, 'w+') as f:
+                os.makedirs(os.path.dirname(self.save_file + f"/{name}_eval.json"), exist_ok=True)
+                with open(self.save_file + f"/{name}_eval.json", 'w+') as f:
                     json.dump(output_data, f, indent=4)
                 pbar.update(1)
 
-        self.trainer.log({f"{name}_accuracy": correct / current ,})
-        wandb.log({f"{name}_accuracy": correct / current ,})
+            os.makedirs(os.path.dirname(self.save_file + f"/{name}_eval_result.json"), exist_ok=True)
+            result = {f"{name}_accuracy": correct / current }
+            with open(self.save_file + f"/{name}_eval_result.json", 'w+') as f:
+                    json.dump(result, f, indent=4)
+            if self.trainer is not None:
+                self.trainer.log(result)
+            wandb.log(result)
             
-        pbar.close()
+            pbar.close()
         print('\n')
         print('test finished')
 
@@ -240,7 +248,7 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
         self.trainer = trainer 
         self.eval_strategy = eval_strategy
 
-        self.save_file =  f"{self.args.output_dir}/eval.json"
+        self.save_file =  f"{self.args.output_dir}"
         self.batches = {}
         self.epoch = 0
         for n, d in test_dataset.items() :
@@ -257,6 +265,8 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
         #     self.evaluate()
         
     def on_train_end(self, args, state, control, **kwargs):
+        self.trainer.save_model()
+    
         self.evaluate()
 
     # def on_train_begin(self, args, state, control, **kwargs):
@@ -318,11 +328,12 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
                 print('---------------')
                 print(f'\rtest[{n}]:{idx + 1}/{total} | accuracy {correct}  {correct / current}')
                 print('---------------')
-                with open(self.save_file, 'w+') as f:
+                with open(self.save_file + f"/{name}_eval", 'w+') as f:
                     json.dump(output_data, f, indent=4)
                 pbar.update(1)
 
-            self.trainer.log({f"{n}_accuracy": correct / current ,})
+            if self.trainer is not None:
+                self.trainer.log({f"{n}_accuracy": correct / current ,})
             wandb.log({f"{n}_accuracy": correct / current ,})
                 
             pbar.close()
