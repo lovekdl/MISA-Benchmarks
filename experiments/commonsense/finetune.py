@@ -533,6 +533,7 @@ def generate_tag(model_args, data_args, training_args) :
             run_name += f"-{args.bcd_activated_layers}layers-interval{args.bcd_interval_steps}-order{args.bcd_update_order}-TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-{args.bcd_base_optimizer}-LR{args.learning_rate}"
         if args.offload_optimizer_state:
             run_name += f"—OffloadOptim"
+        run_name += f"Gran[{args.granularity}]"
 
         targets = []
         if args.bcd_target_attn:

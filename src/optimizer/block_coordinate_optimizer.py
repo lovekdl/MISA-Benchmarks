@@ -37,6 +37,7 @@ class BlockCoordinateOptimizer(Optimizer):
         device = 'cuda',
         offload_rank = -1,
         offload_quantization_bit = 8, 
+        granularity='layer', 
         log_fn = None,
     ):
         """
@@ -50,8 +51,10 @@ class BlockCoordinateOptimizer(Optimizer):
             verbose (int, optional): The verbosity level for printing information during optimization. Defaults to 1.
             log_fn: A logging function for recording information during optimization. Defaults to None.
         """
+        self.granularity = granularity
+        self.module_names = []
         # print(base_optimizer)
-        block_prefix_list, other_params = self.infer_param_groups([n for n, _ in named_parameters_list])
+        block_prefix_list, other_params = self.infer_param_groups(named_parameters_list)
         
         assert isinstance(block_prefix_list, list)
         self.bcd_activated_layers = bcd_activated_layers
@@ -156,31 +159,38 @@ class BlockCoordinateOptimizer(Optimizer):
             if "lm_head" in n:
                 return p
 
-    def infer_param_groups(self, param_names):
+    def infer_param_groups(self, named_parameters_list):
         """automatic inference of the parameter groups based on the parameter names.
         divide groups into:
             * embedding
             * transformer layers
             * lm_head and others
         """
-        import re
-        
         block_prefix_list = []
         other_params = []
         layers_pattern = r'.*layers.[^.]*\.'
         layer_pattern = r'.*layer.[^.]*\.'
 
-        for name in param_names:
-            # print(name, block_prefix_list)
-            if any(prefix[0] in name for prefix in block_prefix_list):
-                continue
-            
-            if re.findall(layers_pattern, name) and "lm_head" not in name:
-                block_prefix_list.append(re.findall(layers_pattern, name))
-            elif re.findall(layer_pattern, name) and "lm_head" not in name:
-                block_prefix_list.append(re.findall(layer_pattern, name))
-            else: 
-                other_params.append(name)
+        import re
+        if self.granularity == 'module' :
+            for name, param in named_parameters_list:
+                if 'layer' not in name or len(param.shape) < 2 :
+                    continue
+                block_prefix_list.append([name])
+                self.module_names.append(name)
+                
+        if self.granularity == 'layer' : 
+            for name, param in named_parameters_list:
+                # print(name, block_prefix_list)
+                if any(prefix[0] in name for prefix in block_prefix_list):
+                    continue
+                
+                if re.findall(layers_pattern, name) and "lm_head" not in name:
+                    block_prefix_list.append(re.findall(layers_pattern, name))
+                elif re.findall(layer_pattern, name) and "lm_head" not in name:
+                    block_prefix_list.append(re.findall(layer_pattern, name))
+                else: 
+                    other_params.append(name)
             # elif re.findall(embed_pattern, name) and include_embedding:
             #     embed_list.append(re.findall(embed_pattern, name)[0])
             # else:
@@ -361,9 +371,12 @@ class BlockCoordinateOptimizer(Optimizer):
             self.grad_norms_calculated_times[i] += 1
             current_grad_norm = torch.norm(torch.tensor(self.current_grad_norms[i])).to(torch.float32).item()
             t_gradnorm_layer = torch.norm(torch.tensor(self.t_grad_norms[i]))
-            wandb.log({f"layer{i} grad norm": current_grad_norm})
-            print(f"layer{i} grad norm: {current_grad_norm}")
-            print(f"T_gradnorm is: {t_gradnorm_layer}")
+            # wandb.log({f"layer{i} grad norm": current_grad_norm})
+            if self.granularity == 'layer':
+                print(f"layer{i} grad norm: {current_grad_norm}")
+            else :
+                print(f"{self.module_names[i]} grad norm: {current_grad_norm}")
+            # print(f"T_gradnorm is: {t_gradnorm_layer}")
             self.grad_norms[i] += current_grad_norm
             self.avg_grad_norms[i] = self.avg_grad_norms[i]*self.grad_beta + (1.0 - self.grad_beta) * current_grad_norm
             self.avg_grad_norms_hat[i] = self.avg_grad_norms[i] / (1.0 - self.layers_grad_beta_multiple[i])

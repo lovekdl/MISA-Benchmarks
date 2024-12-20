@@ -49,6 +49,10 @@ class CustomizedTrainingArguments(TrainingArguments) :
         default='adamw',
         metadata={"help": ""},
     )
+    granularity:str = field(
+        default='layer',
+        metadata={"help": ""},
+    )
     only_layer:Optional[int] = field(
         default=-1,
         metadata={"help": ""},
