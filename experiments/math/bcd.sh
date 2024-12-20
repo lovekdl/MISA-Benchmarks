@@ -10,6 +10,8 @@ python -u experiments/math/finetune.py \
     --per_device_train_batch_size 2 \
     --per_device_eval_batch_size 1 \
     --optimizer bcd-optimizer \
+    --bcd_activated_layers 7 \
+    --granularity module \
     --seed 42 \
     --gradient_accumulation_steps 1 \
     --num_train_epochs 5 \

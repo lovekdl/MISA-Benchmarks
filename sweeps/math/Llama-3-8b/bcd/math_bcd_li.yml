@@ -15,8 +15,8 @@ command:
   - --bcd_activated_layers=1
   - --grad_importance_exp=0
   - --offload_optimizer_state=False
-  - --bcd_interval_steps=50
-  - --seed=42
+  - --bcd_interval_steps=30
+  - --seed=114514
   - --report_to=wandb
   - --per_device_train_batch_size=4
   - --per_device_eval_batch_size=1 
@@ -39,7 +39,9 @@ method: grid
 parameters:
   learning_rate:
     values:
+      - 3e-6
       - 5e-6
+      - 7e-6
   weight_decay:
     values:
       - 0

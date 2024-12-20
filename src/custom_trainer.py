@@ -58,6 +58,7 @@ class OurTrainer(Trainer):
                 device=self.model.device,
                 offload_rank=args.offload_rank,
                 offload_quantization_bit=args.offload_quantization_bit,
+                granularity=args.granularity,
             )
         elif args.optimizer == "adam":
                 self.optimizer = Adam(self.model.parameters(), lr=args.learning_rate)
