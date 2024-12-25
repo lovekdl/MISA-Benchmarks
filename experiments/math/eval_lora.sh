@@ -1,0 +1,26 @@
+python -u experiments/math/evaluate.py \
+    --model_name_or_path /data/drj/BCD-Benchmarks/save/BCD-1layers-interval50-ordergrad_distribution-TASK[math]-meta-llama/Meta-Llama-3-8B-EPOCH3.0-adamw-LR5e-06_target_attn_mlp/2024-12-19_084856 \
+    --eval_name BCD-1layers-interval50-ordergrad_distribution-TASK[math]-Meta-Llama-3-8B-EPOCH3.0-adamw-LR5e-06_target_attn_mlp \
+    --dataset_path datasets/openbookqa\
+    --task_name math \
+    --do_train True \
+    --do_eval True \
+    --do_predict False \
+    --offload_optimizer_state False \
+    --per_device_train_batch_size 4 \
+    --per_device_eval_batch_size 1 \
+    --optimizer bcd-optimizer \
+    --seed 42 \
+    --gradient_accumulation_steps 4 \
+    --num_train_epochs 3 \
+    --learning_rate 1e-5 \
+    --lr_scheduler_type linear\
+    --max_seq_length 512 \
+    --logging_steps 1 \
+    --save_total_limit 0 \
+    --evaluation_strategy epoch \
+    --save_strategy no \
+    --overwrite_output_dir \
+    --output_dir save/eval  \
+    --report_to wandb \
+    --pad_to_max_length False \
