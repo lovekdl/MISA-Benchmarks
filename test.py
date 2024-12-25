@@ -30,22 +30,26 @@ peft_kwargs = {
     "lora_dropout": 0.05,
 }
 from peft import LoraConfig, LoraModel, PeftModel, TaskType, get_peft_model
-lora_config = LoraConfig(
-        task_type=TaskType.SEQ_CLS,
-        inference_mode=False,
-        use_dora=False,
-        **peft_kwargs,
-    )
-model = get_peft_model(model, lora_config)
+# lora_config = LoraConfig(
+        # task_type=TaskType.SEQ_CLS,
+#         inference_mode=False,
+#         use_dora=False,
+#         **peft_kwargs,
+#     )
+# model = get_peft_model(model, lora_config)
 
 sum = 0
 lora_sum = 0
+layer_sum = 0
 for n, p in model.named_parameters() :
     sum += p.numel()
     if("lora" in n) :
         lora_sum += p.numel()
+    if '31' in n :
+        layer_sum += p.numel()
 print(sum)
 for n, p in model.named_parameters() :
     print(n,p.shape, p.numel()/sum)
 
 print(f"Lora Learnable: {lora_sum/sum}")
+print(f"layer Learnable: {layer_sum / sum }")

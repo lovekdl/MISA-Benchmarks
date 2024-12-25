@@ -37,6 +37,7 @@ class BlockCoordinateOptimizer(Optimizer):
         device = 'cuda',
         offload_rank = -1,
         offload_quantization_bit = 8, 
+        param_ratio_threshold = 1, 
         log_fn = None,
     ):
         """
