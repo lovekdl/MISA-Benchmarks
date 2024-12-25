@@ -37,6 +37,7 @@ class BlockCoordinateOptimizer(Optimizer):
         device = 'cuda',
         offload_rank = -1,
         offload_quantization_bit = 8, 
+        param_ratio_threshold = 1, 
         log_fn = None,
     ):
         """
@@ -267,10 +268,10 @@ class BlockCoordinateOptimizer(Optimizer):
         self._update_lr()
         self._grad_to_hp()
         self.base_optimizer.step(*args, **kwargs)
+        self.calculate_grad_norm_for_each_layer()
         self._clean_hp_grad()
 
         
-        self.calculate_grad_norm_for_each_layer()
 
         self._update_param()
         self.global_step += 1
@@ -311,22 +312,31 @@ class BlockCoordinateOptimizer(Optimizer):
         import re
 
         self.current_grad_norms = [[] for _ in range(self.total_layers)]
+        self.t_grad_norms = [[] for _ in range(self.total_layers)]
         for name, param in self.named_parameters_list:
             if not param.requires_grad  : 
                 continue
             hp = self.lp_to_hp[param]
             grad = (param.to(dtype=torch.float32) - hp).to(torch.float16)
+            current_grad_norm = torch.norm(grad).to(torch.float32).item()
+            del grad
+            t_grad = hp.grad
+            t_gradnorm = torch.norm(t_grad)
+            del t_grad
+            del hp
             # state = self.base_optimizer.state[hp]
             # exp_avg = state['exp_avg']
             # exp_avg_sq = state["exp_avg_sq"]
             # op_step = state["step"]
             
             
-            current_grad_norm = torch.norm(grad).to(torch.float32).item()
+            
             is_layer_param = False
             for i in range(self.total_layers) :
                 if(self.block_prefix_list[i][0] in name) :
-                    self.current_grad_norms[i].append(current_grad_norm)
+                    # self.current_grad_norms[i].append(current_grad_norm)
+                    self.current_grad_norms[i].append(t_gradnorm)
+                    self.t_grad_norms[i].append(t_gradnorm)
                     is_layer_param = True
                     break
             if not is_layer_param :
@@ -351,8 +361,10 @@ class BlockCoordinateOptimizer(Optimizer):
                 continue
             self.grad_norms_calculated_times[i] += 1
             current_grad_norm = torch.norm(torch.tensor(self.current_grad_norms[i])).to(torch.float32).item()
+            t_gradnorm_layer = torch.norm(torch.tensor(self.t_grad_norms[i]))
             wandb.log({f"layer{i} grad norm": current_grad_norm})
             print(f"layer{i} grad norm: {current_grad_norm}")
+            print(f"T_gradnorm is: {t_gradnorm_layer}")
             self.grad_norms[i] += current_grad_norm
             self.avg_grad_norms[i] = self.avg_grad_norms[i]*self.grad_beta + (1.0 - self.grad_beta) * current_grad_norm
             self.avg_grad_norms_hat[i] = self.avg_grad_norms[i] / (1.0 - self.layers_grad_beta_multiple[i])
@@ -381,13 +393,13 @@ class BlockCoordinateOptimizer(Optimizer):
         return selected
     
     def optimizer_state_scale(self, x) :
-        x_mx_val = torch.max(torch.abs(x))
+        x_mx_val = torch.max(torch.abs(x)).to(dtype=torch.float32)
         scale_factor = ((2**7) - 1) / x_mx_val
         x_quantized = torch.round(x * scale_factor).to(dtype=torch.int8)
         return x_quantized, scale_factor
     
     def optimizer_state_unscale(self, x, scale_factor) :
-        x = (x / scale_factor).to(dtype=torch.float32)
+        x = (x.to(dtype=torch.float32) / scale_factor).to(dtype=torch.float32)
         return x
 
     def update_trainable_params(self, verbose: Optional[int] = None) -> None:
@@ -551,6 +563,7 @@ class BlockCoordinateOptimizer(Optimizer):
                 for i in range(len(layer_selection_probabilities)) :
                     layer_selection_probabilities[i] /= ((self.layer_selected_times[i]) ** self.grad_importance_exp)
                 assert len(layer_selection_probabilities) == self.total_layers
+                print(f"before divide: {self.avg_grad_norms_hat}\n")
                 print(f"layer_selection_probabilities: {layer_selection_probabilities}")
                 # print(f"avg_grad_norms_hat: {self.avg_grad_norms_hat}")
                 self.active_layers_indices = self.weighted_sample_without_replacement(population=range(len(layer_selection_probabilities)), weights=layer_selection_probabilities, k=self.bcd_activated_layers)
@@ -728,8 +741,13 @@ class BlockCoordinateOptimizer(Optimizer):
         #     print(f"{n}:")
         #     hp = self.lp_to_hp[p]
         #     for key, value in self.base_optimizer.state[hp].items() :
-        #         self.base_optimizer.state[hp][key] = value.to(dtype=torch.float16).to(dtype=torch.float32)
-                # print(n, p.requires_grad, key, value.device, value.dtype, value.shape)
+        #         # self.base_optimizer.state[hp][key] = value.to(dtype=torch.float16).to(dtype=torch.float32)
+        #         delta = value - value.to(dtype=torch.float16).to(dtype=torch.float32)
+        #         # scaled_value, scale_factor = self.optimizer_state_scale(value)
+        #         # dequantized = self.optimizer_state_unscale(scaled_value, scale_factor)
+        #         # delta = torch.abs(value - dequantized)
+        #         print(n, key, f"ERR[{float(torch.sum(torch.abs(delta)) /torch.sum(torch.abs(value)))}]", torch.norm(delta).data, torch.norm(value).data, torch.sum(torch.abs(delta)).data, torch.sum(torch.abs(value)).data)
+        #         # print(n, p.requires_grad, key, value.device, value.dtype, value.shape)
 
         # print("end: ")
         # print(self.base_optimizer.state)
@@ -743,6 +761,8 @@ class BlockCoordinateOptimizer(Optimizer):
             else :
                 untranable += p.numel()
         print(f"{trainable}/{trainable+untranable}  =  {trainable/(trainable+untranable)}")
+
+        wandb.log({"trainable_param_ratio":  trainable/(trainable+untranable)})
 
 
 

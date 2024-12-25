@@ -328,7 +328,7 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
                 print('---------------')
                 print(f'\rtest[{n}]:{idx + 1}/{total} | accuracy {correct}  {correct / current}')
                 print('---------------')
-                with open(self.save_file + f"/{name}_eval", 'w+') as f:
+                with open(self.save_file + f"/{n}_eval", 'w+') as f:
                     json.dump(output_data, f, indent=4)
                 pbar.update(1)
 

@@ -630,7 +630,7 @@ def main() :
             "lora_dropout": 0.05,
         }
         lora_config = LoraConfig(
-                task_type=TaskType.SEQ_CLS,
+                task_type=TaskType.CAUSAL_LM,
                 inference_mode=False,
                 use_dora=False,
                 **peft_kwargs,

@@ -20,7 +20,7 @@ class BlockCoordinateOptimizer(Optimizer):
         self,
         base_optimizer: Optimizer,
         named_parameters_list,
-        bcd_interval_steps = 5,
+        bcd_interval_steps = 30,
         active_modules: List[str] = [],
         include_embedding_and_lm_head=False,
         bcd_activated_layers=1,
@@ -37,6 +37,8 @@ class BlockCoordinateOptimizer(Optimizer):
         device = 'cuda',
         offload_rank = -1,
         offload_quantization_bit = 8, 
+        param_ratio_limit = 1, 
+        LRU = 0, 
         log_fn = None,
     ):
         """
@@ -53,6 +55,7 @@ class BlockCoordinateOptimizer(Optimizer):
         # print(base_optimizer)
         block_prefix_list, other_params = self.infer_param_groups([n for n, _ in named_parameters_list])
         
+
         assert isinstance(block_prefix_list, list)
         self.bcd_activated_layers = bcd_activated_layers
         self.bcd_interval_steps = bcd_interval_steps
@@ -118,12 +121,14 @@ class BlockCoordinateOptimizer(Optimizer):
         self.lora_mode = False
 
         self.grad_importance_exp = grad_importance_exp
-        
-        self.param_to_optimizer_state = {}
-        # fp32_params = []
-        # for n, p in named_parameters_list:
-        #     if p.dtype == torch.float32:
-        #         fp32_params.append(n)
+        self.param_ratio_limit = param_ratio_limit
+
+        self.total_params_num = 0
+        for n, p in named_parameters_list:
+            self.total_params_num += p.numel()
+        self.LRU = LRU
+        self.last_used = [0] * self.total_layers
+
 
         if any(isinstance(p, torch.FloatTensor) for _, p in named_parameters_list):
             warnings.warn("Expect model to be loaded in fp16 precision while detect fp32 weight. \
@@ -269,15 +274,13 @@ class BlockCoordinateOptimizer(Optimizer):
         self.base_optimizer.step(*args, **kwargs)
         self.calculate_grad_norm_for_each_layer()
         self._clean_hp_grad()
-
+        self._update_param()
         
 
-        self._update_param()
         self.global_step += 1
 
-
         torch.cuda.empty_cache()
-        if (self.global_step + 1) % self.bcd_interval_steps == 0 or (self.bcd_order == "grad_distribution" and self.global_step <= self.total_layers):
+        if (self.global_step + 1) % self.bcd_interval_steps == 0 or (self.bcd_order == "grad_distribution" and (0 in self.last_used)):
             self.update_trainable_params()
 
     def _clean_hp_grad(self) -> None:
@@ -380,15 +383,28 @@ class BlockCoordinateOptimizer(Optimizer):
         weights = list(weights)
 
         selected = []
+        
+        w = [(x, id) for id, x in enumerate(self.last_used)]
+        w = sorted(w, key=lambda item: item[0])
+        for i in self.total_layers :
+            if w[i][0] == 0 or i < self.LRU:
+                selected.append(w[i][1])
+                del population[w[i][1]]
+                del weights[w[i][1]]
+                k -= 1
         for _ in range(k):
-            
             chosen = random.choices(population, weights=weights, k=1)[0]
             selected.append(chosen)
-
             index = population.index(chosen)
             del population[index]
             del weights[index]
 
+        choosed_ratio = 0.0
+        for i in range(len(selected)) :
+            choosed_ratio += self.layers_param_number[selected[i]] / self.total_params_num
+            if choosed_ratio > self.param_ratio_limit :
+                break
+        selected = selected[0 : i]
         return selected
     
     def optimizer_state_scale(self, x) :
@@ -593,6 +609,7 @@ class BlockCoordinateOptimizer(Optimizer):
 
         for i in self.active_layers_indices :
             self.active_param_prefixs.append(self.block_prefix_list[i][0])
+            self.last_used[i] = self.global_step
         active_param_groups = [
             {
                 "params": [],
