@@ -42,6 +42,7 @@ class OurTrainer(Trainer):
             base_optimizer = AdamW(self.model.parameters(), lr=args.learning_rate)
             # print(BlockCoordinateOptimizer.__module__)
             # print(args.offload_optimizer_state)
+            print(args)
             self.optimizer = BlockCoordinateOptimizer(
                 base_optimizer=base_optimizer,
                 named_parameters_list=list(self.model.named_parameters()),
@@ -59,12 +60,19 @@ class OurTrainer(Trainer):
                 offload_rank=args.offload_rank,
                 offload_quantization_bit=args.offload_quantization_bit,
                 granularity=args.granularity,
+                LRU=args.LRU,
+                param_ratio_limit=args.param_ratio_limit,
             )
         elif args.optimizer == "adam":
-                self.optimizer = Adam(self.model.parameters(), lr=args.learning_rate)
+            self.optimizer = Adam(self.model.parameters(), lr=args.learning_rate)
         elif args.optimizer == "sgd":
             self.optimizer = SGD(self.model.parameters(), lr=args.learning_rate, momentum=args.momentum)
         elif args.optimizer == "adamw":
+            # for n, p in self.model.named_parameters() :
+            #     if "1" not in n:
+            #         p.requires_grad = False
+            #     else:
+            #         p.requires_grad = True
             self.optimizer = AdamW(self.model.parameters(), lr=args.learning_rate)
         else : raise NotImplementedError("We only support 3 optimizers: adam, sgd and adamw. ")
                 

@@ -6,7 +6,7 @@ from transformers import (
 )
 import torch
 model_name = "meta-llama/Llama-2-7b-hf"
-model_name = "meta-llama/Meta-Llama-3-8B"
+# model_name = "meta-llama/Meta-Llama-3-8B"
 config = AutoConfig.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(
         model_name,

@@ -73,4 +73,12 @@ class CustomizedTrainingArguments(TrainingArguments) :
         default=-1,
         metadata={"help":""},
     )
+    param_ratio_limit: Optional[float] = field(
+        default=1,
+        metadata={"help":""}
+    )
+    LRU: Optional[int] = field(
+        default=0,
+        metadata={"help":""}
+    )
 

@@ -32,7 +32,7 @@ command:
   - --report_to=wandb
   - --pad_to_max_length=False
   - --overwrite_output_dir=True
-  - --lr_scheduler_type=cosine
+  - --lr_scheduler_type=linear
 method: grid
 parameters:
   learning_rate:
