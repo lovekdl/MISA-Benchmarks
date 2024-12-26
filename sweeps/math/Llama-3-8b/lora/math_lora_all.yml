@@ -8,8 +8,8 @@ command:
   - --task_name=math
   - --lora=True
   - --lora_r=16
-  - --lora_alpha=16
-  - --lora_target=q_proj,k_proj,v_proj,o_proj,up_proj,down_proj,gate_proj
+  - --lora_alpha=32
+  - --lora_target=q_proj,k_proj,v_proj,up_proj,down_proj
   - --optimizer=adamw
   - --dataset_path=datasets/Math10k
   - --task_name=math
@@ -21,7 +21,7 @@ command:
   - --max_seq_length=512
   - --eval_strategy=epoch
   - --save_strategy=no
-  - --num_train_epochs=3
+  - --num_train_epochs=6
   - --output_dir=experiments/glue_finetuning/results/Adam/math/
   - --fp16=True
   - --do_eval=True
@@ -36,7 +36,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 1e-4
+      - 2e-4
   weight_decay:
     values:
       - 0

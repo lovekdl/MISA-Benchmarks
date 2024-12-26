@@ -2,3 +2,6 @@ peft
 torch
 fire
 datasets
+transformers
+fire
+wandb

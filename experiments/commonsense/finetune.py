@@ -644,7 +644,7 @@ def main() :
         tokenizer.pad_token_id = (
             0  # unk. we want this to be different from the eos token
         )
-        tokenizer.padding_side = "left"  # Allow batched inference
+    tokenizer.padding_side = "left"  # Allow batched inference
 
     
     trainable = 0

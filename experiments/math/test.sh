@@ -1,5 +1,5 @@
 python -u experiments/math/finetune.py \
-    --model_name_or_path meta-llama/Meta-Llama-3-8B \
+    --model_name_or_path meta-llama/Llama-2-7b-hf \
     --dataset_path datasets/Math10k\
     --task_name math \
     --do_train True \
@@ -7,13 +7,18 @@ python -u experiments/math/finetune.py \
     --do_predict False \
     --bcd_update_order grad_distribution \
     --offload_optimizer_state False \
-    --per_device_train_batch_size 2 \
+    --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 1 \
-    --optimizer bcd-optimizer \
+    --bcd_activated_layers 7 \
+    --grad_importance_exp 0\
+    --optimizer adamw \
+    --LRU 1 \
+    --param_ratio_limit 0.030 \
+    --granularity layer\
     --seed 42 \
     --gradient_accumulation_steps 1 \
-    --num_train_epochs 5 \
-    --learning_rate 5e-6 \
+    --num_train_epochs 3 \
+    --learning_rate 1e-5 \
     --lr_scheduler_type cosine\
     --max_seq_length 512 \
     --logging_steps 1 \
