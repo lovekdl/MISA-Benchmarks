@@ -531,7 +531,13 @@ class BlockCoordinateOptimizer(Optimizer):
         if verbose is None:
             verbose = self.verbose
         if self.bcd_order == "random" :
-            self.active_layers_indices = np.random.choice(range(self.total_layers), self.bcd_activated_layers, replace=False)
+            if self.granularity == 'layer':
+                self.active_layers_indices = np.random.choice(range(self.total_layers), self.bcd_activated_layers, replace=False)
+            elif self.granularity == 'module' :
+                layer_selection_probabilities = [1] * self.total_layers
+                assert len(layer_selection_probabilities) == self.total_layers
+                self.active_layers_indices = self.weighted_sample_without_replacement(population=range(len(layer_selection_probabilities)), weights=layer_selection_probabilities, k=self.bcd_activated_layers)
+            
         elif self.bcd_order == "ascending" :
             if len(self.active_layers_indices):
                 st = self.active_layers_indices[-1] + 1
