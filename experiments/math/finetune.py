@@ -534,6 +534,8 @@ def generate_tag(model_args, data_args, training_args) :
         if args.offload_optimizer_state:
             run_name += f"—OffloadOptim"
         run_name += f"Gran[{args.granularity}]"
+        if args.granularity == 'module' :
+            run_name += f"[{args.param_ratio_limit}]"
 
         targets = []
         if args.bcd_target_attn:

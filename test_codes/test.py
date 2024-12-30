@@ -6,7 +6,7 @@ from transformers import (
 )
 import torch
 model_name = "meta-llama/Llama-2-7b-hf"
-# model_name = "meta-llama/Meta-Llama-3-8B"
+model_name = "meta-llama/Meta-Llama-3-8B"
 config = AutoConfig.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(
         model_name,
@@ -30,13 +30,13 @@ peft_kwargs = {
     "lora_dropout": 0.05,
 }
 from peft import LoraConfig, LoraModel, PeftModel, TaskType, get_peft_model
-# lora_config = LoraConfig(
-        # task_type=TaskType.SEQ_CLS,
-#         inference_mode=False,
-#         use_dora=False,
-#         **peft_kwargs,
-#     )
-# model = get_peft_model(model, lora_config)
+lora_config = LoraConfig(
+        task_type=TaskType.SEQ_CLS,
+        inference_mode=False,
+        use_dora=False,
+        **peft_kwargs,
+    )
+model = get_peft_model(model, lora_config)
 
 sum = 0
 lora_sum = 0

@@ -1,4 +1,4 @@
-name: llama-2-7b_bcd_LI_grand[module]_clipnorm[10]_math_target[all]
+name: llama-2-7b_bcd_LI_grand[module][0.05]_clipnorm[10]_math_target[all]
 project: bcd_bench_math
 command:
   - ${interpreter}
@@ -14,7 +14,7 @@ command:
   - --optimizer=bcd-optimizer
   - --grad_importance_exp=0
   - --LRU=1
-  - --param_ratio_limit=0.03wandb agent lovekdl/bcd_bench_math/jb6qdvn9
+  - --param_ratio_limit=0.05
   - --granularity=module
   - --bcd_activated_layers=7
   - --max_grad_norm=10
@@ -28,7 +28,7 @@ command:
   - --max_seq_length=512
   - --eval_strategy=epoch
   - --save_strategy=no
-  - --num_train_epochs=6
+  - --num_train_epochs=10
   - --output_dir=experiments/glue_finetuning/results/Adam/math/
   - --do_eval=True
   - --do_train=True 
@@ -43,6 +43,7 @@ method: grid
 parameters:
   learning_rate:
     values:
+      - 1e-5
       - 5e-6
   weight_decay:
     values:
