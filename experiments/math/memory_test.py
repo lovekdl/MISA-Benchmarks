@@ -795,7 +795,7 @@ def main() :
     #     data = load_dataset(data_args.dataset_path)
     # train_data = data["train"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
     print("vocab size is ", model.config)
-    data_list = generate_dataset(min_len=1000, max_len=1500, step=50, vocab_size=32000)
+    data_list = generate_dataset(min_len=100, max_len=3000, step=100, vocab_size=32000)
 
     # 2. 将 list 转换为 Hugging Face Dataset
     from datasets import Dataset, DatasetDict
