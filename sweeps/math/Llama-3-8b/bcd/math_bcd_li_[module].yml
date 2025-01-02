@@ -1,4 +1,4 @@
-name: llama-3-8b_bcd_LI_multi_lr_grand[module]_clipnorm[10]_math_target[all]
+name: llama-3-8b_bcd_LI_multi_lr_grand[module][0.03]_NEW_clipnorm[10]_math_target[all]
 project: bcd_bench_math
 command:
   - ${interpreter}
@@ -43,9 +43,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 7e-6
       - 5e-6
-      - 3e-6
   weight_decay:
     values:
       - 0

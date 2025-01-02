@@ -43,6 +43,7 @@ class OurTrainer(Trainer):
             # print(BlockCoordinateOptimizer.__module__)
             # print(args.offload_optimizer_state)
             print(args)
+            # print(self.model.config)
             self.optimizer = BlockCoordinateOptimizer(
                 base_optimizer=base_optimizer,
                 named_parameters_list=list(self.model.named_parameters()),
@@ -62,6 +63,9 @@ class OurTrainer(Trainer):
                 granularity=args.granularity,
                 LRU=args.LRU,
                 param_ratio_limit=args.param_ratio_limit,
+                hidden_size=self.model.config.hidden_size,
+                module_target=args.module_target,
+                testing_memory = args.testing_memory, 
             )
         elif args.optimizer == "adam":
             self.optimizer = Adam(self.model.parameters(), lr=args.learning_rate)

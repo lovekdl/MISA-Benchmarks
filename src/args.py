@@ -81,4 +81,17 @@ class CustomizedTrainingArguments(TrainingArguments) :
         default=0,
         metadata={"help":""}
     )
+    normalization_type: str = field(
+        default="L-norm",
+        metadata={"help":""}
+    )
+    module_target: str = field(
+        default="all",
+        metadata={"help":""}
+    )
+    testing_memory: str = field(
+        default='n',
+        metadata={"help":"y or n"}
+
+    )
 

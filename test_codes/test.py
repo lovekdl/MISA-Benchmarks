@@ -5,8 +5,8 @@ from transformers import (
     AutoModelForCausalLM,
 )
 import torch
-model_name = "meta-llama/Llama-2-7b-hf"
 model_name = "meta-llama/Meta-Llama-3-8B"
+model_name = "meta-llama/Llama-2-7b-hf"
 config = AutoConfig.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(
         model_name,
@@ -14,6 +14,8 @@ model = AutoModelForCausalLM.from_pretrained(
         config=config,
         torch_dtype=torch.float16,
     )
+print(model.config)
+exit(0)
 sum = 0
 for n, p in model.named_parameters() :
     sum += p.numel()
