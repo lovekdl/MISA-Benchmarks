@@ -20,7 +20,7 @@ class BlockCoordinateOptimizer(Optimizer):
         self,
         base_optimizer: Optimizer,
         named_parameters_list,
-        bcd_interval_steps = 5,
+        bcd_interval_steps = 30,
         active_modules: List[str] = [],
         include_embedding_and_lm_head=False,
         bcd_activated_layers=1,
@@ -37,7 +37,9 @@ class BlockCoordinateOptimizer(Optimizer):
         device = 'cuda',
         offload_rank = -1,
         offload_quantization_bit = 8, 
-        param_ratio_threshold = 1, 
+        granularity='layer', 
+        param_ratio_limit = 1, 
+        LRU = 0, 
         log_fn = None,
     ):
         """
@@ -51,9 +53,14 @@ class BlockCoordinateOptimizer(Optimizer):
             verbose (int, optional): The verbosity level for printing information during optimization. Defaults to 1.
             log_fn: A logging function for recording information during optimization. Defaults to None.
         """
+        self.granularity = granularity
+        self.module_names = []
         # print(base_optimizer)
-        block_prefix_list, other_params = self.infer_param_groups([n for n, _ in named_parameters_list])
+        self.block_target_attn=block_target_attn
+        self.block_target_mlp=block_target_mlp
+        block_prefix_list, other_params = self.infer_param_groups(named_parameters_list)
         
+
         assert isinstance(block_prefix_list, list)
         self.bcd_activated_layers = bcd_activated_layers
         self.bcd_interval_steps = bcd_interval_steps
@@ -106,8 +113,6 @@ class BlockCoordinateOptimizer(Optimizer):
         self.state_dict = base_optimizer.state_dict # for compatibility of hf Trainer
     
         self.permutation = []
-        self.block_target_attn=block_target_attn
-        self.block_target_mlp=block_target_mlp
         self.block_target_non_linear=block_target_non_linear
         self.offload_optimizer_state = offload_optimizer_state
 
@@ -119,12 +124,17 @@ class BlockCoordinateOptimizer(Optimizer):
         self.lora_mode = False
 
         self.grad_importance_exp = grad_importance_exp
-        
-        self.param_to_optimizer_state = {}
-        # fp32_params = []
-        # for n, p in named_parameters_list:
-        #     if p.dtype == torch.float32:
-        #         fp32_params.append(n)
+        self.param_ratio_limit = param_ratio_limit
+
+        self.module_type_names = ['q_proj', 'k_proj', 'v_proj', 'o_proj', 'up_proj', 'gate', 'down']
+        self.module_selected_times = [0] * 7
+
+        self.total_params_num = 0
+        for n, p in named_parameters_list:
+            self.total_params_num += p.numel()
+        self.LRU = LRU
+        self.last_used = [0] * self.total_layers
+
 
         if any(isinstance(p, torch.FloatTensor) for _, p in named_parameters_list):
             warnings.warn("Expect model to be loaded in fp16 precision while detect fp32 weight. \
@@ -157,31 +167,43 @@ class BlockCoordinateOptimizer(Optimizer):
             if "lm_head" in n:
                 return p
 
-    def infer_param_groups(self, param_names):
+    def infer_param_groups(self, named_parameters_list):
         """automatic inference of the parameter groups based on the parameter names.
         divide groups into:
             * embedding
             * transformer layers
             * lm_head and others
         """
-        import re
-        
         block_prefix_list = []
         other_params = []
         layers_pattern = r'.*layers.[^.]*\.'
         layer_pattern = r'.*layer.[^.]*\.'
 
-        for name in param_names:
-            # print(name, block_prefix_list)
-            if any(prefix[0] in name for prefix in block_prefix_list):
-                continue
-            
-            if re.findall(layers_pattern, name) and "lm_head" not in name:
-                block_prefix_list.append(re.findall(layers_pattern, name))
-            elif re.findall(layer_pattern, name) and "lm_head" not in name:
-                block_prefix_list.append(re.findall(layer_pattern, name))
-            else: 
-                other_params.append(name)
+        import re
+        if self.granularity == 'module' :
+            for name, param in named_parameters_list:
+                if 'layer' not in name or len(param.shape) < 2 :
+                    continue
+                if self.block_target_attn == False and "attn" in name:
+                    continue
+                if self.block_target_mlp == False and "mlp" in name:
+                    continue
+
+                block_prefix_list.append([name])
+                self.module_names.append(name)
+                
+        if self.granularity == 'layer' : 
+            for name, param in named_parameters_list:
+                # print(name, block_prefix_list)
+                if any(prefix[0] in name for prefix in block_prefix_list):
+                    continue
+                
+                if re.findall(layers_pattern, name) and "lm_head" not in name:
+                    block_prefix_list.append(re.findall(layers_pattern, name))
+                elif re.findall(layer_pattern, name) and "lm_head" not in name:
+                    block_prefix_list.append(re.findall(layer_pattern, name))
+                else: 
+                    other_params.append(name)
             # elif re.findall(embed_pattern, name) and include_embedding:
             #     embed_list.append(re.findall(embed_pattern, name)[0])
             # else:
@@ -261,24 +283,19 @@ class BlockCoordinateOptimizer(Optimizer):
         
     def step(self, *args, **kwargs) -> None:
         self.record_mark = True
-        # print("start")
-        # print("finish")
-
         
         self._update_lr()
         self._grad_to_hp()
         self.base_optimizer.step(*args, **kwargs)
+        
         self.calculate_grad_norm_for_each_layer()
         self._clean_hp_grad()
-
-        
-
         self._update_param()
+
         self.global_step += 1
 
-
         torch.cuda.empty_cache()
-        if (self.global_step + 1) % self.bcd_interval_steps == 0 or (self.bcd_order == "grad_distribution" and self.global_step <= self.total_layers):
+        if (self.global_step + 1) % self.bcd_interval_steps == 0 or (self.bcd_order == "grad_distribution" and (0 in self.last_used)):
             self.update_trainable_params()
 
     def _clean_hp_grad(self) -> None:
@@ -302,7 +319,6 @@ class BlockCoordinateOptimizer(Optimizer):
         for lp_param, hp_param in zip(self.param_idx2lp.values(), self.param_idx2hp.values()):
             assert lp_param.grad is not None, "The low precision parameter's gradient is None."
             hp_param.grad = lp_param.grad.float()
-
             if clear_lp_grads:
                 lp_param.grad = None
 
@@ -317,11 +333,12 @@ class BlockCoordinateOptimizer(Optimizer):
             if not param.requires_grad  : 
                 continue
             hp = self.lp_to_hp[param]
-            grad = (param.to(dtype=torch.float32) - hp).to(torch.float16)
-            current_grad_norm = torch.norm(grad).to(torch.float32).item()
+            # grad = (param.to(dtype=torch.float32) - hp).to(torch.float16)
+            # current_grad_norm = torch.norm(grad).to(torch.float32).item()
             del grad
             t_grad = hp.grad
             t_gradnorm = torch.norm(t_grad)
+            current_grad_norm = t_gradnorm
             del t_grad
             del hp
             # state = self.base_optimizer.state[hp]
@@ -362,9 +379,12 @@ class BlockCoordinateOptimizer(Optimizer):
             self.grad_norms_calculated_times[i] += 1
             current_grad_norm = torch.norm(torch.tensor(self.current_grad_norms[i])).to(torch.float32).item()
             t_gradnorm_layer = torch.norm(torch.tensor(self.t_grad_norms[i]))
-            wandb.log({f"layer{i} grad norm": current_grad_norm})
-            print(f"layer{i} grad norm: {current_grad_norm}")
-            print(f"T_gradnorm is: {t_gradnorm_layer}")
+            # wandb.log({f"layer{i} grad norm": current_grad_norm})
+            if self.granularity == 'layer':
+                print(f"layer{i} grad norm: {current_grad_norm}")
+            else :
+                print(f"{self.module_names[i]} grad norm: {current_grad_norm}")
+            # print(f"T_gradnorm is: {t_gradnorm_layer}")
             self.grad_norms[i] += current_grad_norm
             self.avg_grad_norms[i] = self.avg_grad_norms[i]*self.grad_beta + (1.0 - self.grad_beta) * current_grad_norm
             self.avg_grad_norms_hat[i] = self.avg_grad_norms[i] / (1.0 - self.layers_grad_beta_multiple[i])
@@ -381,15 +401,37 @@ class BlockCoordinateOptimizer(Optimizer):
         weights = list(weights)
 
         selected = []
+        
+        w = [(x, id) for id, x in enumerate(self.last_used)]
+        w = sorted(w, key=lambda item: item[0])
+        choosed_ratio = 0.0
+        for i in range(self.total_layers) :
+            if (w[i][0] == 0 or i < self.LRU) and k > 0:
+                if choosed_ratio + self.layers_param_number[w[i][1]] / self.total_params_num <= self.param_ratio_limit:
+                    choosed_ratio += self.layers_param_number[w[i][1]] / self.total_params_num
+                    selected.append(w[i][1])
+                    k -= 1
+                index = population.index(w[i][1])
+                del population[index]
+                del weights[index]
         for _ in range(k):
-            
-            chosen = random.choices(population, weights=weights, k=1)[0]
-            selected.append(chosen)
+            if len(population) == 0: break
+            while len(population) :
+                chosen = random.choices(population, weights=weights, k=1)[0]
+                if choosed_ratio + self.layers_param_number[chosen] / self.total_params_num <= self.param_ratio_limit:
+                    choosed_ratio += self.layers_param_number[chosen] / self.total_params_num
+                    selected.append(chosen)
+                index = population.index(chosen)
+                del population[index]
+                del weights[index]
 
-            index = population.index(chosen)
-            del population[index]
-            del weights[index]
-
+        # for i in range(len(selected)) :
+        #     choosed_ratio += self.layers_param_number[selected[i]] / self.total_params_num
+        #     if choosed_ratio > self.param_ratio_limit :
+        #         choosed_ratio -= self.layers_param_number[selected[i]] / self.total_params_num
+        #         break
+        print(f"choosed params ratio:{choosed_ratio}")
+        # selected = selected[0 : i]
         return selected
     
     def optimizer_state_scale(self, x) :
@@ -468,34 +510,8 @@ class BlockCoordinateOptimizer(Optimizer):
                     del self.base_optimizer.state[hp]
                     del hp
                     del self.lp_to_hp[p]
-                # for n, p in self.named_parameters_list :
-                #     # if p.requires_grad:
-                #     #     print(n, p.requires_grad, p in self.base_optimizer.state)
-                #     #     if p in self.base_optimizer.state :
-                #     #         print(len(self.base_optimizer.state[p]))
-                #     if p not in self.lp_to_hp :
-                #         continue
-                #     hp = self.lp_to_hp[p]
-                #     if not p.requires_grad or (hp not in self.base_optimizer.state) or (len(self.base_optimizer.state[hp]) == 0) :
-                #         continue
-                    
-                #     for key, value in self.base_optimizer.state[hp].items() :
-                #         # print(n, key, value.shape)
-                #         if key == 'step'  :
-                #             self.base_optimizer.state[p][key] = self.base_optimizer.state[hp][key]
-                #         else :
-                #             value, scale_factor = self.optimizer_state_scale(value)
-                #             value = value.to('cpu')
-                #             self.base_optimizer.state[p][key] = (value, scale_factor)
-                #     del self.base_optimizer.state[hp]
-                #     del hp
-                #     del self.lp_to_hp[p]
             else :
                 for n, p in self.named_parameters_list :
-                    # if p.requires_grad:
-                    #     print(n, p.requires_grad, p in self.base_optimizer.state)
-                    #     if p in self.base_optimizer.state :
-                    #         print(len(self.base_optimizer.state[p]))
                     if p not in self.lp_to_hp :
                         continue
                     hp = self.lp_to_hp[p]
@@ -516,7 +532,13 @@ class BlockCoordinateOptimizer(Optimizer):
         if verbose is None:
             verbose = self.verbose
         if self.bcd_order == "random" :
-            self.active_layers_indices = np.random.choice(range(self.total_layers), self.bcd_activated_layers, replace=False)
+            if self.granularity == 'layer':
+                self.active_layers_indices = np.random.choice(range(self.total_layers), self.bcd_activated_layers, replace=False)
+            elif self.granularity == 'module' :
+                layer_selection_probabilities = [1] * self.total_layers
+                assert len(layer_selection_probabilities) == self.total_layers
+                self.active_layers_indices = self.weighted_sample_without_replacement(population=range(len(layer_selection_probabilities)), weights=layer_selection_probabilities, k=self.bcd_activated_layers)
+            
         elif self.bcd_order == "ascending" :
             if len(self.active_layers_indices):
                 st = self.active_layers_indices[-1] + 1
@@ -554,26 +576,29 @@ class BlockCoordinateOptimizer(Optimizer):
         elif self.bcd_order == "grad_distribution":
             # sample an layer from self.grad_norms[]
 
-            if self.global_step < self.total_layers:
-                # warm up to get initial grad norms
-                self.active_layers_indices = [self.global_step]
-            else :
-                layer_selection_probabilities = self.avg_grad_norms_hat.copy()
+            # if self.global_step < self.total_layers:
+            #     # warm up to get initial grad norms
+            #     self.active_layers_indices = [self.global_step]
+            # else :
+            layer_selection_probabilities = self.avg_grad_norms_hat.copy()
 
-                for i in range(len(layer_selection_probabilities)) :
+            for i in range(len(layer_selection_probabilities)) :
+                if self.layer_selected_times[i] != 0:
                     layer_selection_probabilities[i] /= ((self.layer_selected_times[i]) ** self.grad_importance_exp)
-                assert len(layer_selection_probabilities) == self.total_layers
-                print(f"before divide: {self.avg_grad_norms_hat}\n")
-                print(f"layer_selection_probabilities: {layer_selection_probabilities}")
-                # print(f"avg_grad_norms_hat: {self.avg_grad_norms_hat}")
-                self.active_layers_indices = self.weighted_sample_without_replacement(population=range(len(layer_selection_probabilities)), weights=layer_selection_probabilities, k=self.bcd_activated_layers)
-                # self.active_layers_indices = np.random.choice(
-                #     a=len(layer_selection_probabilities), 
-                #     size=self.bcd_activated_layers,
-                #     replace=False, 
-                #     p=layer_selection_probabilities 
-                # ).tolist()
-            # print(f"hahaha: {self.activate_layers_indices}")
+                else :
+                    layer_selection_probabilities[i] = 1000
+            assert len(layer_selection_probabilities) == self.total_layers
+            print(f"before divide: {self.avg_grad_norms_hat}\n")
+            print(f"layer_selection_probabilities: {layer_selection_probabilities}")
+            # print(f"avg_grad_norms_hat: {self.avg_grad_norms_hat}")
+            self.active_layers_indices = self.weighted_sample_without_replacement(population=range(len(layer_selection_probabilities)), weights=layer_selection_probabilities, k=self.bcd_activated_layers)
+            # self.active_layers_indices = np.random.choice(
+            #     a=len(layer_selection_probabilities), 
+            #     size=self.bcd_activated_layers,
+            #     replace=False, 
+            #     p=layer_selection_probabilities 
+            # ).tolist()
+        # print(f"hahaha: {self.activate_layers_indices}")
         if self.only_layer > self.total_layers:
             raise RuntimeError('The indicated only_layer number > the number of all layers')
 
@@ -594,6 +619,9 @@ class BlockCoordinateOptimizer(Optimizer):
 
         for i in self.active_layers_indices :
             self.active_param_prefixs.append(self.block_prefix_list[i][0])
+            self.last_used[i] = self.global_step
+            
+            
         active_param_groups = [
             {
                 "params": [],
@@ -624,6 +652,10 @@ class BlockCoordinateOptimizer(Optimizer):
             # if "lm_head" not in name :
             #     freezing_this_layer=True
             # else: freezing_this_layer = False
+            if not freezing_this_layer:
+                for j in range(7):
+                    if self.module_type_names[j] in name:
+                        self.module_selected_times[j] += 1
 
             if freezing_this_layer:
                 param.requires_grad_(False)
@@ -640,8 +672,12 @@ class BlockCoordinateOptimizer(Optimizer):
                 
                 self.param_idx2lp[i] = param
                 self.param_idx2hp[i] = param_hp
-                # if self.offload_optimizer_state:
                 self.lp_to_hp[param] = param_hp
+                # print(f"THE LENGTH IS {i} :")
+                # print(len(self.param_idx2lp))
+                # print(len(self.param_idx2hp))
+                # print(len(self.lp_to_hp))
+                # if self.offload_optimizer_state:
                 
                 if "bias" not in name and not isinstance(param, tuple(ALL_LAYERNORM_LAYERS)):
                     active_param_groups[0]['params'].append(param_hp)
@@ -662,6 +698,9 @@ class BlockCoordinateOptimizer(Optimizer):
         import gc
         gc.collect()
         
+
+        for i in range(7) :
+            wandb.log({f"{self.module_type_names[i]} selected times":self.module_selected_times[i]})
         # load old optimizer state from cpu
         if self.offload_optimizer_state :
             if self.offload_rank > 0 :
@@ -763,6 +802,5 @@ class BlockCoordinateOptimizer(Optimizer):
         print(f"{trainable}/{trainable+untranable}  =  {trainable/(trainable+untranable)}")
 
         wandb.log({"trainable_param_ratio":  trainable/(trainable+untranable)})
-
 
 

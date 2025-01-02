@@ -767,7 +767,7 @@ def main() :
     train_data = data["train"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
     
     # load test dataset 
-    test_names = ['GSM8K', 'SVAMP', 'AQuA', 'mawps']
+    test_names = ['AQuA', 'mawps', 'GSM8K', 'SVAMP']
     test_data = {}
     for n in test_names:
         test_d = load_dataset(f'datasets/{n}')
