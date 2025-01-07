@@ -414,7 +414,7 @@ class BlockCoordinateOptimizer(Optimizer):
             # print("value1 : ", math.log(1.0+current_grad_norm) ** 2)
             # print("value2 : ", (self.total_layers * self.p[i] * self.p[i]))
 
-            self.G[i] += (math.log(1.0+current_grad_norm) ** 2) / (self.total_layers * self.p[i] * self.p[i] )
+            # self.G[i] += (math.log(1.0+current_grad_norm) ** 2) / (self.total_layers * self.p[i] * self.p[i] )
 
             # print(f"T_gradnorm is: {t_gradnorm_layer}")
             self.grad_norms[i] += current_grad_norm
@@ -424,8 +424,8 @@ class BlockCoordinateOptimizer(Optimizer):
             self.last_grad_norms[i] += current_grad_norm
             # print(f"layer {i} : current_grad_norm={current_grad_norm} avg_grad_norms={self.avg_grad_norms[i]} param_number={self.layers_param_number[i]}")
 
-        G_sum  = sum([ (1.0/math.sqrt(Gi + eps)) for Gi in self.G])
-        self.p = [ (1.0/math.sqrt(Gi + eps)) /G_sum for Gi in self.G]
+        # G_sum  = sum([ (1.0/math.sqrt(Gi + eps)) for Gi in self.G])
+        # self.p = [ (1.0/math.sqrt(Gi + eps)) /G_sum for Gi in self.G]
         # print("updated self.p: ", self.p)
         # print("updated G: ", self.G)
             # print(f"torch norm calculate -- {name}: {torch.norm(param.grad)}")
@@ -448,6 +448,11 @@ class BlockCoordinateOptimizer(Optimizer):
         w = [(x, id) for id, x in enumerate(self.last_used)]
         w = sorted(w, key=lambda item: item[0])
         choosed_ratio = 0.0
+        if self.granularity == "module" :
+            k = 10000000
+        else :
+             self.param_ratio_limit = 1
+            
         for i in range(self.total_layers) :
             if (w[i][0] == 0 or i < self.LRU) and k > 0:
                 if choosed_ratio + self.layers_param_number[w[i][1]] / self.total_params_num <= self.param_ratio_limit:
@@ -457,16 +462,16 @@ class BlockCoordinateOptimizer(Optimizer):
                 index = population.index(w[i][1])
                 del population[index]
                 del weights[index]
-        for _ in range(k):
-            if len(population) == 0: break
-            while len(population) :
-                chosen = random.choices(population, weights=weights, k=1)[0]
-                if choosed_ratio + self.layers_param_number[chosen] / self.total_params_num <= self.param_ratio_limit:
-                    choosed_ratio += self.layers_param_number[chosen] / self.total_params_num
-                    selected.append(chosen)
-                index = population.index(chosen)
-                del population[index]
-                del weights[index]
+
+        while len(population) and k > 0 :
+            chosen = random.choices(population, weights=weights, k=1)[0]
+            if choosed_ratio + self.layers_param_number[chosen] / self.total_params_num <= self.param_ratio_limit:
+                choosed_ratio += self.layers_param_number[chosen] / self.total_params_num
+                selected.append(chosen)
+                k -= 1
+            index = population.index(chosen)
+            del population[index]
+            del weights[index]
 
         # for i in range(len(selected)) :
         #     choosed_ratio += self.layers_param_number[selected[i]] / self.total_params_num
@@ -622,7 +627,7 @@ class BlockCoordinateOptimizer(Optimizer):
         
         for i in self.active_layers_indices :
             self.layer_selected_times[i] += 1
-        # print(f"Layer selected times: {self.layer_selected_times}")
+        print(f"Layer selected times: {self.layer_selected_times}")
 
         # self.active_param_prefixs = self.block_prefix_list[active_layers_indices]
         self.active_param_prefixs = []

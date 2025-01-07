@@ -653,7 +653,7 @@ def main() :
             trainable += p.numel()
         else: ntrainable += p.numel()
     for i in range(10):
-        print(f"Trainable parameters: {trainable} / {ntrainable}")
+        print(f"Trainable parameters: {trainable} / {ntrainable+trainable}")
     
     wandb.log({"trainable_param_ratio": trainable / (ntrainable+trainable)})
     

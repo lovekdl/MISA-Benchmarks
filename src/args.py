@@ -92,6 +92,12 @@ class CustomizedTrainingArguments(TrainingArguments) :
     testing_memory: str = field(
         default='n',
         metadata={"help":"y or n"}
-
+    )
+    every_epoch_eval: bool = field(
+        default=False,
+        metadata={
+            "help": "Will use the token generated when running `transformers-cli login` (necessary to use this script "
+                    "with private models)."
+        },
     )
 

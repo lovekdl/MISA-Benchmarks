@@ -61,20 +61,13 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
 
 
     def on_epoch_end(self, args, state, control, **kwargs):
-        if self.eval_strategy != 'epoch' :
-            return
+        if args.every_epoch_eval and self.eval_strategy == "epoch":
+            self.evaluate() 
         
-        self.epoch += 1
-        # if self.epoch % 3 == 0:
-            # self.evaluate()
-    # def on_train_begin(self, args, state, control, **kwargs):
-    #     self.evaluate()
-    #     exit(0)
     def on_train_end(self, args, state, control, **kwargs):
-
         self.trainer.save_model()
-    
-        self.evaluate()
+        if not args.every_epoch_eval and self.eval_strategy == "epoch":
+            self.evaluate()
 
     def on_step_end(self, args, state, control, **kwargs):
 
@@ -85,6 +78,7 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
             return
     
     def evaluate(self) :
+        self.model.eval()
         for name, batches in self.batches.items() :
 
             total = len(batches)
@@ -137,6 +131,7 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
             pbar.close()
         print('\n')
         print('test finished')
+        self.model.train()
 
     def batch_generate(
             self,
@@ -258,16 +253,13 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
 
 
     def on_epoch_end(self, args, state, control, **kwargs):
-        if self.eval_strategy != 'epoch' :
-            return
-        self.epoch += 1 
-        # if self.epoch % 3 == 0:
-        #     self.evaluate()
+        if args.every_epoch_eval:
+            self.evaluate() 
         
     def on_train_end(self, args, state, control, **kwargs):
         self.trainer.save_model()
-    
-        self.evaluate()
+        if not args.every_epoch_eval:
+            self.evaluate()
 
     # def on_train_begin(self, args, state, control, **kwargs):
     #     self.evaluate()
@@ -283,7 +275,7 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
     
     def evaluate(self) :
         
-
+        self.model.eval()
         for n, data_batches  in self.batches.items():
             total = len(data_batches)
             correct = 0
@@ -339,6 +331,7 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
             pbar.close()
             print('\n')
             print(f'test{n} finished')
+        self.model.train()
 
     def batch_generate(
             self,
