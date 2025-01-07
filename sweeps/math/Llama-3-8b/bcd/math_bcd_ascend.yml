@@ -1,4 +1,4 @@
-name: llama-3-8b_bcd_adamw_math_target[all]
+name: llama-3-8b_BAdam_clip[10.0]_adamw_math_target[all]
 project: bcd_bench_math
 command:
   - ${interpreter}
@@ -10,7 +10,6 @@ command:
   - --bcd_target_mlp=True
   - --optimizer=bcd-optimizer
   - --bcd_update_order=ascending
-  - --bcd_activated_layers=1
   - --bcd_interval_steps=50
   - --dataset_path=datasets/Math10k
   - --task_name=math
@@ -19,9 +18,11 @@ command:
   - --per_device_train_batch_size=4
   - --per_device_eval_batch_size=1 
   - --gradient_accumulation_steps=1
+  - --granularity=layer
   - --max_seq_length=512
+  - --max_grad_norm=10.0
   - --save_strategy=no
-  - --num_train_epochs=3
+  - --num_train_epochs=6
   - --eval_strategy=epoch
   - --output_dir=experiments/glue_finetuning/results/Adam/math/
   - --do_eval=True
@@ -38,6 +39,10 @@ parameters:
   learning_rate:
     values:
       - 5e-6
+  bcd_activated_layers:
+    values:
+      - 1
+      - 2
   weight_decay:
     values:
       - 0

@@ -12,6 +12,7 @@ python -u experiments/math/finetune.py \
     --optimizer bcd-optimizer \
     --bcd_activated_layers 7 \
     --granularity module \
+    --eval_strategy epoch \
     --seed 42 \
     --gradient_accumulation_steps 1 \
     --num_train_epochs 5 \
@@ -26,3 +27,4 @@ python -u experiments/math/finetune.py \
     --output_dir result/lora/test  \
     --report_to wandb \
     --pad_to_max_length False \
+    --every_epoch_eval True \
