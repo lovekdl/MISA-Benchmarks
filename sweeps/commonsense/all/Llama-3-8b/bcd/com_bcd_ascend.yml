@@ -1,4 +1,4 @@
-name: llama-3-8b_bcd_adamw_commonsense_target[all]
+name: llama-3-8b_BAdam_adamw_commonsense_target[all]
 project: bcd_bench_commonsense
 command:
   - ${interpreter}

@@ -7,6 +7,7 @@ from transformers import (
 import torch
 model_name = "meta-llama/Meta-Llama-3-8B"
 model_name = "meta-llama/Llama-2-7b-hf"
+model_name = "mistralai/Mistral-7B-v0.3"
 config = AutoConfig.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(
         model_name,
@@ -24,6 +25,7 @@ for n, p in model.named_parameters() :
     print(n,p.shape, p.numel()/sum)
 # data = load_dataset('datasets/mawps')
 # print(data)
+exit(0)
 
 peft_kwargs = {
     "r": 16,

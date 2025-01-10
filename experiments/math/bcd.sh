@@ -5,11 +5,12 @@ python -u experiments/math/finetune.py \
     --do_train True \
     --do_eval True\
     --do_predict False \
-    --bcd_update_order grad_distribution \
+    --bcd_update_order bandit \
     --offload_optimizer_state False \
     --per_device_train_batch_size 2 \
     --per_device_eval_batch_size 1 \
     --optimizer bcd-optimizer \
+    --param_ratio_limit 0.03 \
     --bcd_activated_layers 7 \
     --granularity module \
     --eval_strategy epoch \

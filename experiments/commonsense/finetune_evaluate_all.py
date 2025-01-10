@@ -207,6 +207,10 @@ class ModelArguments:
         default='all',
         metadata={"help": "lora target"},
     )
+    use_dora:Optional[bool] = field(
+        default=False,
+        metadata={"help":"use dora finetuning."}
+    )
 
     drop_first_layers: Optional[int] = field(
         default=0,
@@ -534,6 +538,8 @@ def generate_tag(model_args, data_args, training_args) :
         if args.offload_optimizer_state:
             run_name += f"—OffloadOptim"
         run_name += f"Gran[{args.granularity}]"
+        if args.granularity == 'module' :
+            run_name += f"[{args.param_ratio_limit}]"
 
         targets = []
         if args.bcd_target_attn:
@@ -542,10 +548,14 @@ def generate_tag(model_args, data_args, training_args) :
             targets.append("mlp")
         run_name += "_target_" + '_'.join(targets) 
     elif model_args.lora:
+        if model_args.use_dora:
+            run_name += f"DORA-rank{model_args.lora_r}-lora_target[{model_args.lora_target}]-alpha{model_args.lora_alpha}-TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-OPTIM[{args.optimizer}]-LR{args.learning_rate}"
         run_name += f"LORA-rank{model_args.lora_r}-lora_target[{model_args.lora_target}]-alpha{model_args.lora_alpha}-TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-OPTIM[{args.optimizer}]-LR{args.learning_rate}"
+
     else :
         run_name +=f"TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-OPTIM[{args.optimizer}]-LR{args.learning_rate}"
     return run_name
+
 
 
 
@@ -633,7 +643,7 @@ def main() :
         lora_config = LoraConfig(
                 task_type=TaskType.CAUSAL_LM,
                 inference_mode=False,
-                use_dora=False,
+                use_dora=model_args.use_dora,
                 **peft_kwargs,
             )
         model = get_peft_model(model, lora_config)
