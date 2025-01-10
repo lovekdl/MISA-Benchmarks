@@ -1,4 +1,4 @@
-name: llama-3-8b_bcd_LI_lr5e-6_grand[module][0.5]_clipnorm[10]_math_target[all]
+name: llama-3-8b_bcd_bandit_grand[module][0.03/1/6]_LRU[2]_clipnorm[10]_math_target[all]
 project: bcd_bench_math
 command:
   - ${interpreter}
@@ -8,15 +8,13 @@ command:
   - --task_name=math
   - --bcd_target_attn=True
   - --bcd_target_mlp=True
-  - --bcd_update_order=grad_distribution
+  - --bcd_update_order=bandit
   - --dataset_path=datasets/Math10k
   - --task_name=math
   - --optimizer=bcd-optimizer
-  - --grad_importance_exp=0.5
-  - --LRU=1
-  - --param_ratio_limit=0.03
+  - --grad_importance_exp=0
+  - --LRU=2
   - --granularity=module
-  - --bcd_activated_layers=7
   - --max_grad_norm=10
   - --offload_optimizer_state=False
   - --bcd_interval_steps=50
@@ -28,7 +26,7 @@ command:
   - --max_seq_length=512
   - --eval_strategy=epoch
   - --save_strategy=no
-  - --num_train_epochs=3
+  - --num_train_epochs=6
   - --output_dir=experiments/glue_finetuning/results/Adam/math/
   - --do_eval=True
   - --do_train=True 
@@ -44,6 +42,11 @@ parameters:
   learning_rate:
     values:
       - 5e-6
+  param_ratio_limit:
+    values:
+      - 0.03
+      - 0.01
+      - 0.06
   weight_decay:
     values:
       - 0

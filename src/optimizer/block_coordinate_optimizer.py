@@ -21,7 +21,7 @@ class BlockCoordinateOptimizer(Optimizer):
         self,
         base_optimizer: Optimizer,
         named_parameters_list,
-        bcd_interval_steps = 30,
+        bcd_interval_steps = 50,
         active_modules: List[str] = [],
         include_embedding_and_lm_head=False,
         bcd_activated_layers=1,
@@ -31,33 +31,25 @@ class BlockCoordinateOptimizer(Optimizer):
         module_target="all", 
         offload_optimizer_state=False,
         only_layer=-1,
-        bcd_order="ascending",
+        bcd_order="bandit",
         verbose: int = 1,
-        grad_beta = 0.9,
-        grad_importance_exp = 1, 
+        grad_beta = 0.8,
+        grad_importance_exp = 0, 
         bcd_suffix_start_index = 0,
         device = 'cuda',
         offload_rank = -1,
         offload_quantization_bit = 8, 
-        granularity='layer', 
-        param_ratio_limit = 1, 
+        granularity='module', 
+        param_ratio_limit = 0.03, 
         LRU = 0, 
         normalization_type = "L-norm", 
-        hidden_size = 4096, 
+        hidden_size = 4096,
+        bandit_eta=0.3, 
+        bantdit_lambda=None,
         testing_memory = 'n',
         log_fn = None,
     ):
-        """
-        Args:
-            base_optimizer (Optimizer): The base optimizer being wrapped by the BlockOptimizer.
-            named_parameters_list: A function that generates the named parameters of the model.
-            block_prefix_list (List[List[str]]): The list of blocks of parameters to be updated.
-            bcd_interval_steps (int, optional): The number of optimization steps before switching to the next block. Defaults to 10.
-            start_block (Optional[int], optional): The index of the block to start with. Defaults to None.
-            active_modules (List[str]): The list of modules that are always active during optimization. Defaults to None.
-            verbose (int, optional): The verbosity level for printing information during optimization. Defaults to 1.
-            log_fn: A logging function for recording information during optimization. Defaults to None.
-        """
+        
         self.granularity = granularity
         self.module_names = []
         # print(base_optimizer)
@@ -100,6 +92,8 @@ class BlockCoordinateOptimizer(Optimizer):
         self.avg_grad_norms = [0] * self.total_layers
         self.avg_grad_norms_hat = [0] * self.total_layers
         self.grad_norms_calculated_times = [0] * self.total_layers
+
+
         self.embed_grad_norm = 0
         self.avg_embed_grad_norm_hat = 0
         self.embed_grad_norm_calculated_times = 0
@@ -131,6 +125,11 @@ class BlockCoordinateOptimizer(Optimizer):
         # lora not supported in here
         self.lora_mode = False
 
+        self.bandit_eta = bandit_eta
+        self.bandit_lambda = bantdit_lambda
+        if self.bandit_lambda is None:
+            self.bandit_lambda = 1.0 / math.log(self.total_layers)
+
         self.grad_importance_exp = grad_importance_exp
         self.param_ratio_limit = param_ratio_limit
 
@@ -143,6 +142,9 @@ class BlockCoordinateOptimizer(Optimizer):
         self.LRU = LRU
         self.last_used = [0] * self.total_layers
         self.G = [0] * self.total_layers
+        self.G_appo = [0] * self.total_layers
+
+        self.bandit_times = [1] * self.total_layers
         self.p = [1.0/self.total_layers] * self.total_layers
         self.param_to_p = {}
 
@@ -305,7 +307,7 @@ class BlockCoordinateOptimizer(Optimizer):
         self.global_step += 1
 
         torch.cuda.empty_cache()
-        if (self.global_step + 1) % self.bcd_interval_steps == 0 or (self.bcd_order == "grad_distribution" and (0 in self.last_used)):
+        if (self.global_step + 1) % self.bcd_interval_steps == 0 or ((self.bcd_order == "grad_distribution" or ("bandit" in self.bcd_order)) and (0 in self.last_used)):
             self.update_trainable_params()
 
     def _clean_hp_grad(self) -> None:
@@ -325,7 +327,7 @@ class BlockCoordinateOptimizer(Optimizer):
         Args:
             clear_lp_grads (bool, optional): Whether to clear the gradients of the low precision parameters. Defaults to True.
         """
-        grad_norm = 0.0
+
         for lp_param, hp_param in zip(self.param_idx2lp.values(), self.param_idx2hp.values()):
             assert lp_param.grad is not None, "The low precision parameter's gradient is None."
             hp_param.grad = lp_param.grad.float()
@@ -358,10 +360,10 @@ class BlockCoordinateOptimizer(Optimizer):
                 t_gradnorm = torch.linalg.norm(t_grad, ord=2)
             t_gradnorm /= math.sqrt(param.numel()) / self.hidden_size
             current_grad_norm = t_gradnorm
-            
+            if self.bcd_order == "bandit_exp_divide_p" :
+                hp.grad /= self.p[id]
+                print(f"{name} divide {self.p[id]} grad:{torch.norm(hp.grad)}")
             eps = 1e-8
-            if self.bcd_order == "bandit" :
-                hp.grad = hp.grad / (self.total_layers * self.p[id])
             # print(self.total_layers)
             del t_grad
             del hp
@@ -377,7 +379,7 @@ class BlockCoordinateOptimizer(Optimizer):
                 if(self.block_prefix_list[i][0] in name) :
                     id = i
                     # self.current_grad_norms[i].append(current_grad_norm)
-                    self.current_grad_norms[i].append(t_gradnorm)
+                    self.current_grad_norms[i].append(current_grad_norm)
                     self.t_grad_norms[i].append(t_gradnorm)
                     is_layer_param = True
                     break
@@ -406,16 +408,16 @@ class BlockCoordinateOptimizer(Optimizer):
             t_gradnorm_layer = torch.norm(torch.tensor(self.t_grad_norms[i]))
             # wandb.log({f"layer{i} grad norm": current_grad_norm})
 
-            # if self.granularity == 'layer':
-            #     print(f"layer{i} grad norm: {current_grad_norm}")
-            # else :
-            #     print(f"{self.module_names[i]} grad norm: {current_grad_norm}")
+            if self.granularity == 'layer':
+                print(f"layer{i} grad norm: {current_grad_norm}")
+            else :
+                print(f"{self.module_names[i]} grad norm: {current_grad_norm}")
 
             # print("value1 : ", math.log(1.0+current_grad_norm) ** 2)
             # print("value2 : ", (self.total_layers * self.p[i] * self.p[i]))
 
-            # self.G[i] += (math.log(1.0+current_grad_norm) ** 2) / (self.total_layers * self.p[i] * self.p[i] )
-
+            self.G_appo[i] += (current_grad_norm) / (self.bcd_interval_steps)
+            # print(f"G_appo[{i}]: {self.G_appo[i]} , {current_grad_norm}, {self.bcd_interval_steps * self.p[i]}")
             # print(f"T_gradnorm is: {t_gradnorm_layer}")
             self.grad_norms[i] += current_grad_norm
             self.avg_grad_norms[i] = self.avg_grad_norms[i]*self.grad_beta + (1.0 - self.grad_beta) * current_grad_norm
@@ -424,12 +426,6 @@ class BlockCoordinateOptimizer(Optimizer):
             self.last_grad_norms[i] += current_grad_norm
             # print(f"layer {i} : current_grad_norm={current_grad_norm} avg_grad_norms={self.avg_grad_norms[i]} param_number={self.layers_param_number[i]}")
 
-        # G_sum  = sum([ (1.0/math.sqrt(Gi + eps)) for Gi in self.G])
-        # self.p = [ (1.0/math.sqrt(Gi + eps)) /G_sum for Gi in self.G]
-        # print("updated self.p: ", self.p)
-        # print("updated G: ", self.G)
-            # print(f"torch norm calculate -- {name}: {torch.norm(param.grad)}")
-        # print(self.avg_grad_norms)
 
     def weighted_sample_without_replacement(self, population, weights, k):
         
@@ -452,7 +448,7 @@ class BlockCoordinateOptimizer(Optimizer):
             k = 10000000
         else :
              self.param_ratio_limit = 1
-            
+        # if w[0][0] == 0 :
         for i in range(self.total_layers) :
             if (w[i][0] == 0 or i < self.LRU) and k > 0:
                 if choosed_ratio + self.layers_param_number[w[i][1]] / self.total_params_num <= self.param_ratio_limit:
@@ -603,19 +599,67 @@ class BlockCoordinateOptimizer(Optimizer):
                     layer_selection_probabilities[i] = 1000
             assert len(layer_selection_probabilities) == self.total_layers
             # print(f"before divide: {self.avg_grad_norms_hat}\n")
-            # print(f"layer_selection_probabilities: {layer_selection_probabilities}")
-            # print(f"avg_grad_norms_hat: {self.avg_grad_norms_hat}")
-            self.active_layers_indices = self.weighted_sample_without_replacement(population=range(len(layer_selection_probabilities)), weights=layer_selection_probabilities, k=self.bcd_activated_layers)
-        elif self.bcd_order == "bandit" :
-            # G_sum  = sum(self.G)
-            # self.p = [Gi/G_sum for Gi in self.G]
-            layer_selection_probabilities = self.p
-            assert len(layer_selection_probabilities) == self.total_layers
-            print(f"G: {self.G}\n")
             print(f"layer_selection_probabilities: {layer_selection_probabilities}")
             # print(f"avg_grad_norms_hat: {self.avg_grad_norms_hat}")
             self.active_layers_indices = self.weighted_sample_without_replacement(population=range(len(layer_selection_probabilities)), weights=layer_selection_probabilities, k=self.bcd_activated_layers)
+        elif self.bcd_order == "bandit" :
+            for i in range(self.total_layers) :
+                if self.G_appo[i] == 0 :
+                    continue
 
+                # print(f"before G[i]={self.G[i]}")
+                self.G[i] = (1.0 - self.grad_beta) * self.G_appo[i] + self.grad_beta * self.G[i]
+
+                # print(f"middle G[i]={self.G[i]}")
+                self.G[i] /= (1.0 - (self.grad_beta**self.bandit_times[i]))
+
+                # print(f"after G[i]={self.G[i]}")
+                # print(f"divide:{(1.0 - (self.grad_beta**self.bandit_times[i]))}")
+                # print(f"after change {i}, G_appo={self.G_appo[i]}, self.G={self.G[i]}")
+                self.bandit_times[i] += 1
+                self.G_appo[i] = 0
+            # print(f"G: {self.G}")
+            g_sum = sum([math.log(1.00001+g) for g in self.G])
+            # print(max(self.G))
+            # print(f"index:{self.G.index(max(self.G))}")
+            # print(f"g_sum is {g_sum}")
+            layer_selection_probabilities = [ ((1.0-self.bandit_lambda)*math.log(1.00001+g)/g_sum + (self.bandit_lambda*(1.0/self.total_layers))) for g in self.G]
+            self.p = layer_selection_probabilities
+            print(f"layer_selection_probabilities: {layer_selection_probabilities}")
+            assert len(layer_selection_probabilities) == self.total_layers
+            # print(f"before divide: {self.avg_grad_norms_hat}\n")
+            # print(f"avg_grad_norms_hat: {self.avg_grad_norms_hat}")
+            self.active_layers_indices = self.weighted_sample_without_replacement(population=range(len(layer_selection_probabilities)), weights=layer_selection_probabilities, k=self.bcd_activated_layers)
+        elif self.bcd_order == "bandit_exp" or self.bcd_order == "bandit_exp_divide_p" :
+            for i in range(self.total_layers) :
+                if self.G_appo[i] == 0 :
+                    continue
+
+                # print(f"before G[i]={self.G[i]}")
+                self.G[i] = (1.0 - self.grad_beta) * self.G_appo[i] + self.grad_beta * self.G[i]
+
+                # print(f"middle G[i]={self.G[i]}")
+                self.G[i] /= (1.0 - (self.grad_beta**self.bandit_times[i]))
+
+                # print(f"after G[i]={self.G[i]}")
+                # print(f"divide:{(1.0 - (self.grad_beta**self.bandit_times[i]))}")
+                # print(f"after change {i}, G_appo={self.G_appo[i]}, self.G={self.G[i]}")
+                self.bandit_times[i] += 1
+                self.G_appo[i] = 0
+            print(f"G: {self.G}")
+            g_sum = sum([math.exp(math.sqrt(g)) for g in self.G])
+            # print(max(self.G))
+            # print(f"index:{self.G.index(max(self.G))}")
+            # print(f"g_sum is {g_sum}")
+            layer_selection_probabilities = [ (math.exp(math.sqrt(g))/g_sum + (self.bandit_lambda*(1.0/self.total_layers))) for g in self.G]
+            self.p = layer_selection_probabilities
+            print(f"layer_selection_probabilities: {layer_selection_probabilities}")
+            assert len(layer_selection_probabilities) == self.total_layers
+            # print(f"before divide: {self.avg_grad_norms_hat}\n")
+            # print(f"avg_grad_norms_hat: {self.avg_grad_norms_hat}")
+            self.active_layers_indices = self.weighted_sample_without_replacement(population=range(len(layer_selection_probabilities)), weights=layer_selection_probabilities, k=self.bcd_activated_layers)
+        
+            
 
         if self.only_layer > self.total_layers:
             raise RuntimeError('The indicated only_layer number > the number of all layers')
@@ -637,7 +681,7 @@ class BlockCoordinateOptimizer(Optimizer):
 
         for i in self.active_layers_indices :
             self.active_param_prefixs.append(self.block_prefix_list[i][0])
-            self.last_used[i] = self.global_step
+            self.last_used[i] = self.global_step+1
             
             
         active_param_groups = [

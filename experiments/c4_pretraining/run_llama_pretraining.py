@@ -339,9 +339,10 @@ def main(args):
     if args.optimizer.lower() == "adamw":
         optimizer = torch.optim.AdamW(trainable_params, lr=args.lr, betas=(args.beta1,args.beta2), eps=args.eps, weight_decay=args.weight_decay)
     elif args.optimizer.lower() == "bcd-optimizer":
+        base_optimizer = torch.optim.AdamW(trainable_params, lr=args.lr, betas=(args.beta1,args.beta2), eps=args.eps, weight_decay=args.weight_decay)
         optimizer = BlockCoordinateOptimizer(
                 base_optimizer=base_optimizer,
-                named_parameters_list=list(self.model.named_parameters()),
+                named_parameters_list=list(model.named_parameters()),
                 bcd_activated_layers=args.block_layers,
                 bcd_interval_steps=args.block_interval_steps,
                 bcd_order=args.block_update_order,
@@ -495,7 +496,7 @@ def main(args):
 
         if global_rank == 0:
 
-            peak_memory = torch.cuda.max_memory_allocated() / (1024 * 1024)
+            peak_memory = torch.cuda.max_memory_allocated() / (1024 * 1024 * 1024)
 
             wandb.log({
                 "loss": loss.item(),
@@ -505,7 +506,7 @@ def main(args):
                 "throughput_tokens": tokens_in_update / update_time,
                 "throughput_examples": args.total_batch_size / update_time,
                 "throughput_batches": batches_in_update / update_time,
-                "peak_memory_MB": peak_memory,
+                "peak_memory_GB": peak_memory,
                 # "grad_norm": grad_norm,
                 },
                 step=global_step,

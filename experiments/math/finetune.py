@@ -207,7 +207,10 @@ class ModelArguments:
         default='all',
         metadata={"help": "lora target"},
     )
-
+    use_dora:Optional[bool] = field(
+        default=False,
+        metadata={"help":"use dora finetuning."}
+    )
     drop_first_layers: Optional[int] = field(
         default=0,
         metadata={
@@ -630,7 +633,7 @@ def main() :
         lora_config = LoraConfig(
                 task_type=TaskType.CAUSAL_LM,
                 inference_mode=False,
-                use_dora=False,
+                use_dora=model_args.use_dora,
                 **peft_kwargs,
             )
         model = get_peft_model(model, lora_config)

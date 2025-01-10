@@ -185,6 +185,10 @@ class ModelArguments:
         default=512,
         metadata={"help": "dim of middle layer"},
     )
+    use_dora:Optional[bool] = field(
+        default=False,
+        metadata={"help":"use dora finetuning."}
+    )
     # bitfit parameters
     tune_bias: bool = field(
         default=False,
@@ -542,6 +546,9 @@ def generate_tag(model_args, data_args, training_args) :
             targets.append("mlp")
         run_name += "_target_" + '_'.join(targets) 
     elif model_args.lora:
+        if model_args.use_dora:
+            run_name += f"DORA-rank{model_args.lora_r}-lora_target[{model_args.lora_target}]-alpha{model_args.lora_alpha}-TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-OPTIM[{args.optimizer}]-LR{args.learning_rate}"
+        
         run_name += f"LORA-rank{model_args.lora_r}-lora_target[{model_args.lora_target}]-alpha{model_args.lora_alpha}-TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-OPTIM[{args.optimizer}]-LR{args.learning_rate}"
     else :
         run_name +=f"TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-OPTIM[{args.optimizer}]-LR{args.learning_rate}"
@@ -629,9 +636,9 @@ def main() :
             "lora_dropout": 0.05,
         }
         lora_config = LoraConfig(
-                task_type=TaskType.SEQ_CLS,
+                task_type=TaskType.CAUSAL_LM,
                 inference_mode=False,
-                use_dora=False,
+                use_dora=model_args.use_dora,
                 **peft_kwargs,
             )
         model = get_peft_model(model, lora_config)
@@ -769,7 +776,7 @@ def main() :
     test_data = data["test"].shuffle(seed=training_args.seed).map(
         generate_and_tokenize_prompt,
         fn_kwargs={"with_answer":False}
-        )
+    )
 
 
 
