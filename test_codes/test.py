@@ -15,7 +15,8 @@ model = AutoModelForCausalLM.from_pretrained(
         config=config,
         torch_dtype=torch.float16,
     )
-# print(model.config)
+
+print(model.config)
 # exit(0)
 sum = 0
 for n, p in model.named_parameters() :

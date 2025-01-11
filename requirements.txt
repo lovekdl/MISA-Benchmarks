@@ -5,3 +5,4 @@ datasets
 transformers
 fire
 wandb
+sentencepiece

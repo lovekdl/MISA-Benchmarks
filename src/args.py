@@ -101,3 +101,16 @@ class CustomizedTrainingArguments(TrainingArguments) :
         },
     )
 
+    # Galore
+    galore:bool = field(
+        default=False,
+        metadata={"help": "whether to use galore"},
+    )
+    galore_r: Optional[int] = field(
+        default=16,
+        metadata={"help": "rank of galore"},
+    )
+    galore_alpha: Optional[float] = field(
+        default=1.0,
+        metadata={"help": "alpha of galore"},
+    )
