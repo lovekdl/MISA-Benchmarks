@@ -1,12 +1,12 @@
 import torch
 from torch.optim import SGD, Adam, AdamW
-
+from torch import nn
 from transformers import Trainer
 from transformers.trainer_callback import (
     DefaultFlowCallback,
     ProgressCallback,
 )
-
+from galore_torch import GaLoreAdamW
 
 from transformers.utils import (
     logging,
@@ -30,6 +30,25 @@ class OurTrainer(Trainer):
     def create_optimizer(self) -> "torch.optim.Optimizer":
         args = self.args
         print(f"Optimizer is {args.optimizer}")
+        if args.galore :
+            galore_params = []
+        for module_name, module in self.model.named_modules():
+            if not isinstance(module, nn.Linear):
+                continue
+            target_modules_list = ["q_proj", "v_proj", "up_proj", "down_proj", "gate_proj", "k_proj", "o_proj"]
+            if not any(target_key in module_name for target_key in target_modules_list):
+                continue
+
+            print('enable GaLore for weights in module: ', module_name)
+            galore_params.append(module.weight)
+
+            id_galore_params = [id(p) for p in galore_params]
+            # make parameters without "rank" to another group
+            regular_params = [p for p in self.model.parameters() if id(p) not in id_galore_params]
+            # then call galore_adamw
+            param_groups = [{'params': regular_params}, 
+                            {'params': galore_params, 'rank': args.galore_r, 'update_proj_gap': 50, 'scale': args.galore_alpha, 'proj_type': 'std'}]
+            self.optimizer = GaLoreAdamW(param_groups, lr=args.learning_rate)
         if args.optimizer == "bcd-optimizer" : 
             # if args.optimizer == "adam" :
             #     base_optimizer = Adam(self.model.parameters(), lr=args.learning_rate)
