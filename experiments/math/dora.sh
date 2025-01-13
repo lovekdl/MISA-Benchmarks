@@ -11,8 +11,8 @@ python -u experiments/math/finetune.py \
     --use_dora True \
     --lora_target q_proj,v_proj,k_proj,o_proj \
     --optimizer adamw \
-    --lora_r 16 \
-    --lora_alpha 32 \
+    --lora_r 8 \
+    --lora_alpha 16 \
     --seed 42 \
     --fp16 \
     --gradient_accumulation_steps 1 \
