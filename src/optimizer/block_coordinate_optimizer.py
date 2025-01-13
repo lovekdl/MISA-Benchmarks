@@ -47,12 +47,16 @@ class BlockCoordinateOptimizer(Optimizer):
         bandit_eta=0.3, 
         bantdit_lambda=None,
         testing_memory = 'n',
+        mix_lora=False,
         log_fn = None,
     ):
         
         self.granularity = granularity
         self.module_names = []
         # print(base_optimizer)
+        self.mix_lora=mix_lora
+        if self.mix_lora:
+            self.granularity = 'module'
         self.module_target = module_target
         self.hidden_size = hidden_size
         self.block_target_attn=block_target_attn
@@ -123,7 +127,7 @@ class BlockCoordinateOptimizer(Optimizer):
         self.embed_grad_beta_multiple = grad_beta
         self.lm_head_grad_beta_multiple = grad_beta
         # lora not supported in here
-        self.lora_mode = False
+        # self.lora_mode = False
 
         self.bandit_eta = bandit_eta
         self.bandit_lambda = bantdit_lambda
@@ -138,7 +142,10 @@ class BlockCoordinateOptimizer(Optimizer):
 
         self.total_params_num = 0
         for n, p in named_parameters_list:
-            self.total_params_num += p.numel()
+            if not self.mix_lora:
+                self.total_params_num += p.numel()
+            elif 'lora' in n :
+                self.total_params_num += p.numel()
         self.LRU = LRU
         self.last_used = [0] * self.total_layers
         self.G = [0] * self.total_layers
@@ -192,7 +199,12 @@ class BlockCoordinateOptimizer(Optimizer):
         layer_pattern = r'.*layer.[^.]*\.'
 
         import re
-        if self.granularity == 'module' :
+        if self.mix_lora:
+            for name, param in named_parameters_list:
+                if 'lora' in name :
+                    block_prefix_list.append([name])
+                    self.module_names.append(name)
+        elif self.granularity == 'module' :
             for name, param in named_parameters_list:
                 if 'layer' not in name or len(param.shape) < 2 :
                     continue
@@ -203,8 +215,7 @@ class BlockCoordinateOptimizer(Optimizer):
                 if self.module_target=="all" or (self.module_target in name) :
                     block_prefix_list.append([name])
                     self.module_names.append(name)
-                
-        if self.granularity == 'layer' : 
+        elif self.granularity == 'layer' : 
             for name, param in named_parameters_list:
                 # print(name, block_prefix_list)
                 if any(prefix[0] in name for prefix in block_prefix_list):
@@ -724,9 +735,6 @@ class BlockCoordinateOptimizer(Optimizer):
                 param.grad = None
                 # print("NOT activated name: ", name)
             else:
-                # print("activated name: ", name)
-                if self.lora_mode and "lora" not in name:
-                    continue
 
                 param_hp = param.clone().float().detach().to(param.device)
                 param.requires_grad_(True)

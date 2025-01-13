@@ -529,6 +529,9 @@ def generate_tag(model_args, data_args, training_args) :
     args = training_args
     if args.optimizer == "bcd-optimizer" :
         run_name = "BCD"
+        if model_args.lora:
+            run_name = "Mix_lora_bcd"
+            training_args.mix_lora = True
         if args.only_layer != -1:
             run_name += f"-only_layer{args.only_layer}"
             run_name += f"-TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-{args.bcd_base_optimizer}-LR{args.learning_rate}"
