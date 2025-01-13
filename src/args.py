@@ -100,6 +100,12 @@ class CustomizedTrainingArguments(TrainingArguments) :
                     "with private models)."
         },
     )
+    mix_lora:bool=field(
+        default=False,
+        metadata={
+            "help": ""
+        },
+    )
 
     # Galore
     galore:bool = field(

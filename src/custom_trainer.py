@@ -85,6 +85,7 @@ class OurTrainer(Trainer):
                 hidden_size=self.model.config.hidden_size,
                 module_target=args.module_target,
                 testing_memory = args.testing_memory, 
+                mix_lora = args.mix_lora,
             )
         elif args.optimizer == "adam":
             self.optimizer = Adam(self.model.parameters(), lr=args.learning_rate)
