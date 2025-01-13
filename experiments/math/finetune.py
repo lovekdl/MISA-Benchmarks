@@ -642,9 +642,9 @@ def main() :
             # else:
         tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
 
-        tokenizer.pad_token_id = (
-            0  # unk. we want this to be different from the eos token
-        )
+    tokenizer.pad_token_id = (
+        0  # unk. we want this to be different from the eos token
+    )
         
     tokenizer.padding_side = "left" 
 

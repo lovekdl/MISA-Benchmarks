@@ -1,4 +1,4 @@
-name: mistral_7b_bcd_bandit_exp_gran[module][0.03/1/5]_commonsense_target[all]
+name: mistral_7b_bcd_bandit_exp_gran[module][0.03][5e-6]_commonsense_target[all]
 project: bcd_bench_commonsense
 command:
   - ${interpreter}
@@ -45,8 +45,6 @@ parameters:
   param_ratio_limit:
     values:
       - 0.03
-      - 0.01
-      - 0.05
   weight_decay:
     values:
       - 0

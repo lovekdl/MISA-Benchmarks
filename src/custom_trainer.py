@@ -32,15 +32,15 @@ class OurTrainer(Trainer):
         print(f"Optimizer is {args.optimizer}")
         if args.galore :
             galore_params = []
-        for module_name, module in self.model.named_modules():
-            if not isinstance(module, nn.Linear):
-                continue
-            target_modules_list = ["q_proj", "v_proj", "up_proj", "down_proj", "gate_proj", "k_proj", "o_proj"]
-            if not any(target_key in module_name for target_key in target_modules_list):
-                continue
+            for module_name, module in self.model.named_modules():
+                if not isinstance(module, nn.Linear):
+                    continue
+                target_modules_list = ["q_proj", "v_proj", "up_proj", "down_proj", "gate_proj", "k_proj", "o_proj"]
+                if not any(target_key in module_name for target_key in target_modules_list):
+                    continue
 
-            print('enable GaLore for weights in module: ', module_name)
-            galore_params.append(module.weight)
+                print('enable GaLore for weights in module: ', module_name)
+                galore_params.append(module.weight)
 
             id_galore_params = [id(p) for p in galore_params]
             # make parameters without "rank" to another group
