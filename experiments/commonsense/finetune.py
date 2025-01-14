@@ -593,6 +593,7 @@ def main() :
     if ("llama" in model_args.model_name_or_path.lower()) or ("mistral" in model_args.model_name_or_path.lower()):
             # LLaMA padding token
             tokenizer.pad_token_id = 0
+    tokenizer.padding_side = "left"  # Allow batched inference
     # if "qwen" in model_args.model_name_or_path.lower():
     #     tokenizer.pad_token_id = tokenizer.eos_token_id
     
