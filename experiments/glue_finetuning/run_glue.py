@@ -64,15 +64,20 @@ from src.custom_trainer import OurTrainer
 # require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/text-classification/requirements.txt")
 
 task_to_keys = {
-    "cola": ("sentence", None),
+    "cola": ("sentence"),
     "mnli": ("premise", "hypothesis"),
     "mrpc": ("sentence1", "sentence2"),
     "qnli": ("question", "sentence"),
     "qqp": ("question1", "question2"),
-    "rte": ("sentence1", "sentence2"),
-    "sst2": ("sentence", None),
+    "sst2": ("sentence"),
     "stsb": ("sentence1", "sentence2"),
     "wnli": ("sentence1", "sentence2"),
+    "boolq": ("passage", "question"),
+    "copa": ("question", "premise", "choice1", "choice2"),
+    "multirc": ("paragraph", "question", "answer"),
+    "rte": ("premise", "hypothesis"),
+    "wic": ("sentence1", "sentence2", "word"),
+    "wsc": ("text", "span1_text", "span2_text"),
 }
 
 logger = logging.getLogger(__name__)
@@ -143,7 +148,7 @@ class DataTrainingArguments:
         default=None, metadata={"help": "The configuration name of the dataset to use (via the datasets library)."}
     )
     max_seq_length: int = field(
-        default=128,
+        default=256,
         metadata={
             "help": "The maximum total input sequence length after tokenization. Sequences longer "
                     "than this will be truncated, sequences shorter will be padded."
@@ -617,63 +622,7 @@ class SparseUpdateTrainer(Trainer):
 
         return loss
 
-
-@dataclass
-class CustomizedTrainingArguments(TrainingArguments) :
-    # optimizer : str = 'adamw'
-    optimizer: Optional[str] = field(
-        default='adamw',
-        metadata = {
-            "help": ""
-        },
-    )
-
-    grad_importance_exp: Optional[float] = field(
-        default=1,
-        metadata = {
-            "help": ""
-        },
-    )
-
-    bcd_activated_layers: Optional[int] = field(
-        default=1,
-        metadata = {
-            "help": ""
-        },
-    )
-
-    bcd_interval_steps: Optional[int] = field(
-        default=30,
-        metadata = {
-            "help": ""
-        },
-    )
-    bcd_update_order: Optional[str] = field(
-        default='ascending',
-        metadata = {
-            "help": ""
-        },
-    )
-    bcd_target_attn: bool = field(
-        default=True,
-        metadata={"help": ""},
-    )
-    bcd_target_mlp: bool = field(
-        default=True,
-        metadata={"help": ""},
-    )
-    bcd_base_optimizer:str = field(
-        default='adamw',
-        metadata={"help": ""},
-    )
-    only_layer:Optional[int] = field(
-        default=-1,
-        metadata={"help": ""},
-    )
-    offload_optimizer_state:Optional[bool] = field(
-        default=False,
-        metadata={"help": ""}
-    )
+from src.args import CustomizedTrainingArguments
 
 
 def generate_tag(model_args, data_args, training_args) :
@@ -681,12 +630,20 @@ def generate_tag(model_args, data_args, training_args) :
     args = training_args
     if args.optimizer == "bcd-optimizer" :
         run_name = "BCD"
+        if model_args.lora:
+            run_name = "Mix_lora_bcd"
+            training_args.mix_lora = True
         if args.only_layer != -1:
             run_name += f"-only_layer{args.only_layer}"
             run_name += f"-TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-{args.bcd_base_optimizer}-LR{args.learning_rate}"
         else :
             run_name += f"-{args.bcd_activated_layers}layers-interval{args.bcd_interval_steps}-order{args.bcd_update_order}-TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-{args.bcd_base_optimizer}-LR{args.learning_rate}"
-        
+        if args.offload_optimizer_state:
+            run_name += f"—OffloadOptim"
+        run_name += f"Gran[{args.granularity}]"
+        if args.granularity == 'module' :
+            run_name += f"[{args.param_ratio_limit}]"
+
         targets = []
         if args.bcd_target_attn:
             targets.append("attn")
@@ -698,6 +655,7 @@ def generate_tag(model_args, data_args, training_args) :
     else :
         run_name +=f"TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-OPTIM[{args.optimizer}]-LR{args.learning_rate}"
     return run_name
+
 
 def main():
     # See all possible arguments in src/transformers/training_args.py
@@ -712,7 +670,7 @@ def main():
 
     run_name = generate_tag(model_args, data_args, training_args)
 
-    wandb.init(project='test_project', name=run_name)
+    wandb.init(project='super_glue', name=run_name)
 
 
     # Setup logging
@@ -765,61 +723,19 @@ def main():
     #
     # In distributed training, the load_dataset function guarantee that only one local process can concurrently
     # download the dataset.
-    if data_args.task_name is not None:
-        # Downloading and loading a dataset from the hub.
-        datasets = load_dataset("glue", data_args.task_name, cache_dir=model_args.cache_dir)
-    elif data_args.dataset_name is not None:
-        # Downloading and loading a dataset from the hub.
-        datasets = load_dataset(data_args.dataset_name, data_args.dataset_config_name, cache_dir=model_args.cache_dir)
-    else:
-        # Loading a dataset from your local files.
-        # CSV/JSON training and evaluation files are needed.
-        data_files = {"train": data_args.train_file, "validation": data_args.validation_file}
-
-        # Get the test dataset: you can provide your own CSV/JSON test file (see below)
-        # when you use `do_predict` without specifying a GLUE benchmark task.
-        if training_args.do_predict:
-            if data_args.test_file is not None:
-                train_extension = data_args.train_file.split(".")[-1]
-                test_extension = data_args.test_file.split(".")[-1]
-                assert (
-                        test_extension == train_extension
-                ), "`test_file` should have the same extension (csv or json) as `train_file`."
-                data_files["test"] = data_args.test_file
-            else:
-                raise ValueError("Need either a GLUE task or a test file for `do_predict`.")
-
-        for key in data_files.keys():
-            logger.info(f"load a local file for {key}: {data_files[key]}")
-
-        if data_args.train_file.endswith(".csv"):
-            # Loading a dataset from local csv files
-            datasets = load_dataset("csv", data_files=data_files, cache_dir=model_args.cache_dir)
-        else:
-            # Loading a dataset from local json files
-            datasets = load_dataset("json", data_files=data_files, cache_dir=model_args.cache_dir)
+    assert data_args.task_name is not None
+    datasets = load_dataset(path="hgissbkh/super_glue", name=data_args.task_name)
     # See more about loading any type of standard or custom dataset at
     # https://huggingface.co/docs/datasets/loading_datasets.html.
 
     # Labels
-    if data_args.task_name is not None:
-        is_regression = data_args.task_name == "stsb"
-        if not is_regression:
-            label_list = datasets["train"].features["label"].names
-            num_labels = len(label_list)
-        else:
-            num_labels = 1
+    is_regression = data_args.task_name == "stsb"
+    if not is_regression:
+        label_list = datasets["train"].features["label"].names
+        num_labels = len(label_list)
     else:
-        # Trying to have good defaults here, don't hesitate to tweak to your needs.
-        is_regression = datasets["train"].features["label"].dtype in ["float32", "float64"]
-        if is_regression:
-            num_labels = 1
-        else:
-            # A useful fast method:
-            # https://huggingface.co/docs/datasets/package_reference/main_classes.html#datasets.Dataset.unique
-            label_list = datasets["train"].unique("label")
-            label_list.sort()  # Let's sort it for determinism
-            num_labels = len(label_list)
+        num_labels = 1
+    
     # print(num_labels)
     # exit(0)
     # Load pretrained model and tokenizer
@@ -827,7 +743,7 @@ def main():
     # In distributed training, the .from_pretrained methods guarantee that only one local process can concurrently
     # download model & vocab.
     config = AutoConfig.from_pretrained(
-        model_args.config_name if model_args.config_name else model_args.model_name_or_path,
+        model_args.model_name_or_path,
         num_labels=num_labels,
         finetuning_task=data_args.task_name,
     )
@@ -837,11 +753,12 @@ def main():
         model_args.model_name_or_path,
         use_fast=model_args.use_fast_tokenizer,
     )
+    tokenizer.tokenize
     model = AutoModelForSequenceClassification.from_pretrained(
         model_args.model_name_or_path,
         device_map='auto',
         config=config,
-        # torch_dtype=torch.float16,
+        torch_dtype=torch.float16,
     )
 
     if model_args.lora:
@@ -912,20 +829,6 @@ def main():
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     logger.info(f"trainable_params: {trainable_params}, total_params: {total_params}")
 
-    # Preprocessing the datasets
-    if data_args.task_name is not None:
-        sentence1_key, sentence2_key = task_to_keys[data_args.task_name]
-    else:
-        # Again, we try to have some nice defaults but don't hesitate to tweak to your use case.
-        non_label_column_names = [name for name in datasets["train"].column_names if name != "label"]
-        if "sentence1" in non_label_column_names and "sentence2" in non_label_column_names:
-            sentence1_key, sentence2_key = "sentence1", "sentence2"
-        else:
-            if len(non_label_column_names) >= 2:
-                sentence1_key, sentence2_key = non_label_column_names[:2]
-            else:
-                sentence1_key, sentence2_key = non_label_column_names[0], None
-
     # Padding strategy
     if data_args.pad_to_max_length:
         padding = "max_length"
@@ -971,16 +874,41 @@ def main():
 
     def preprocess_function(examples):
         # Tokenize the texts
-        args = (
-            (examples[sentence1_key],) if sentence2_key is None else (examples[sentence1_key], examples[sentence2_key])
-        )
-        result = tokenizer(*args, padding=padding, max_length=max_seq_length, truncation=True)
+        keys = task_to_keys[data_args.task_name]
 
+        # print(keys)
+        # args = (
+        #     (examples[sentence1_key],) if sentence2_key is None else (examples[sentence1_key], examples[sentence2_key])
+        # )
+        # if sentence3_key is not None:
+        #     args = ((examples[sentence1_key], examples[sentence2_key], examples[sentence3_key]))
+        # print(examples(keys[0]))
+        # exit(0)
+        texts = []
+        for i in range(len(examples[keys[0]])):
+            t = ""
+            for k in keys:
+                t += examples[k][i] + "</s>"
+            texts.append(t)
+
+        # for i in range(len(examples[sentence1_key])):
+        # print(examples)
+        # print(examples[0])
+        # print(examples[1])
+        
+
+        result = tokenizer(texts, padding=padding, max_length=max_seq_length, truncation=True)
+        
+        # print(result)
+        s = tokenizer.decode(result["input_ids"][-1])
+        # print(s)
+        # exit(0)
         # Map labels to IDs (not necessary for GLUE tasks)
         if label_to_id is not None and "label" in examples:
             result["label"] = [(label_to_id[l] if l != -1 else -1) for l in examples["label"]]
         return result
-
+    # print(datasets["train"])
+    # exit(0)
     datasets = datasets.map(
         preprocess_function,
         batched=True,
@@ -1015,7 +943,7 @@ def main():
 
     # Get the metric function
     if data_args.task_name is not None:
-        metric = evaluate.load("glue", data_args.task_name)
+        metric = evaluate.load("super_glue", data_args.task_name)
     else:
         metric = evaluate.load("accuracy")
 

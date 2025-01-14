@@ -1,5 +1,5 @@
 python -u experiments/math/finetune.py \
-    --model_name_or_path meta-llama/Meta-Llama-3-8B \
+    --model_name_or_path Qwen/Qwen2.5-7B-Instruct \
     --dataset_path datasets/Math10k\
     --task_name math \
     --do_train True \

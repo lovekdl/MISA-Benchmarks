@@ -1,5 +1,9 @@
 python -u experiments/math/finetune.py \
+<<<<<<< HEAD
+    --model_name_or_path Qwen/Qwen2.5-7B-Instruct \
+=======
     --model_name_or_path meta-llama/Meta-Llama-3-8B \
+>>>>>>> fe2af5ce92228f9e569896b8f5369ada1b4a5116
     --dataset_path datasets/Math10k\
     --task_name math \
     --do_train True \
@@ -16,7 +20,7 @@ python -u experiments/math/finetune.py \
     --fp16 \
     --gradient_accumulation_steps 1 \
     --num_train_epochs 5 \
-    --learning_rate 3e-4 \
+    --learning_rate 1e-4 \
     --lr_scheduler_type cosine\
     --max_seq_length 512 \
     --logging_steps 1 \

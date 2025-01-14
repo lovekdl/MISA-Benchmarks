@@ -6,3 +6,7 @@ transformers
 fire
 wandb
 sentencepiece
+<<<<<<< HEAD
+scikit-learn
+=======
+>>>>>>> fe2af5ce92228f9e569896b8f5369ada1b4a5116

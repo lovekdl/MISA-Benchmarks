@@ -7,6 +7,8 @@ command:
   - --model_name_or_path=mistralai/Mistral-7B-v0.3
   - --task_name=commonsense
   - --lora=True
+  - --lora_r=8
+  - --lora_alpha=16
   - --lora_r=16
   - --lora_alpha=32
   - --lora_target=q_proj,k_proj,v_proj,up_proj,down_proj
@@ -36,7 +38,11 @@ method: grid
 parameters:
   learning_rate:
     values:
+<<<<<<< HEAD
+      - 1e-4
+=======
       - 5e-5
+>>>>>>> fe2af5ce92228f9e569896b8f5369ada1b4a5116
   weight_decay:
     values:
       - 0

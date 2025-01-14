@@ -600,9 +600,9 @@ def main() :
     if ("llama" in model_args.model_name_or_path.lower()) or ("mistral" in model_args.model_name_or_path.lower()):
             # LLaMA padding token
             tokenizer.pad_token_id = 0
+    tokenizer.padding_side = "left"  # Allow batched inference
     print(("mistral" in model_args.model_name_or_path.lower()))
     print(model_args.model_name_or_path.lower())
-    tokenizer.padding_side = "left"  # Allow batched inference
     # print(torch.cuda.max_memory_allocated()/  (1024**3))
     # exit(0)
 
