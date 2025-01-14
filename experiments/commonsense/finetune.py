@@ -530,6 +530,8 @@ def generate_tag(model_args, data_args, training_args) :
     args = training_args
     if args.optimizer == "bcd-optimizer" :
         run_name = "BCD"
+        if args.include_embedding_and_lm_head:
+            run_name = "LISA"
         if model_args.lora:
             run_name = "Mix_lora_bcd"
             training_args.mix_lora = True
@@ -593,6 +595,7 @@ def main() :
     if ("llama" in model_args.model_name_or_path.lower()) or ("mistral" in model_args.model_name_or_path.lower()):
             # LLaMA padding token
             tokenizer.pad_token_id = 0
+    tokenizer.padding_side = "left"  # Allow batched inference
     # print(torch.cuda.max_memory_allocated()/  (1024**3))
     # exit(0)
 
@@ -645,17 +648,6 @@ def main() :
                 **peft_kwargs,
             )
         model = get_peft_model(model, lora_config)
-
-            # if model.config.model_type == "llama":
-            #     tokenizer = LlamaTokenizer.from_pretrained(model_args.model_name_or_path)
-            # else:
-        tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
-
-    tokenizer.pad_token_id = (
-        0  # unk. we want this to be different from the eos token
-    )
-    tokenizer.padding_side = "left"  # Allow batched inference
-
     
     trainable = 0
     ntrainable = 0

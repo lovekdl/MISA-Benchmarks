@@ -394,22 +394,22 @@ class BlockCoordinateOptimizer(Optimizer):
                     self.t_grad_norms[i].append(t_gradnorm)
                     is_layer_param = True
                     break
-            if not is_layer_param :
-                if re.findall(embed_pattern, name):
-                    self.embed_grad_norm_calculated_times += 1
-                    self.embed_grad_norm += current_grad_norm
-                    self.avg_embed_grad_norm = self.grad_beta * self.avg_embed_grad_norm + (1.0 - self.grad_beta) * current_grad_norm
-                    self.avg_embed_grad_norm_hat = self.avg_embed_grad_norm / (1.0 - self.embed_grad_beta_multiple)
-                    self.embed_grad_beta_multiple *= self.grad_beta
-                    # print(f"embed : current_grad_norm={current_grad_norm} avg_grad_norms={self.avg_embed_grad_norm} param_number={self.embed_param_number}")
-                elif "lm_head" in name:
-                    self.lm_head_grad_norm_calculated_times += 1
-                    self.lm_head_grad_norm += current_grad_norm
-                    # print(f"lm_head_grad_norm={self.lm_head_grad_norm} lm_head_grad_norm_calculated_times = {self.lm_head_grad_norm_calculated_times}")
-                    self.avg_lm_head_grad_norm = self.grad_beta * self.avg_lm_head_grad_norm + (1.0 - self.grad_beta) * current_grad_norm
-                    self.avg_lm_head_grad_norm_hat = self.avg_lm_head_grad_norm / (1.0 - self.lm_head_grad_beta_multiple)
-                    self.lm_head_grad_beta_multiple *= self.grad_beta
-                    # print(f"lm_head : current_grad_norm={current_grad_norm} avg_grad_norms={self.avg_lm_head_grad_norm} param_number={self.lm_head_param_number}")
+            # if not is_layer_param :
+            #     if re.findall(embed_pattern, name):
+            #         self.embed_grad_norm_calculated_times += 1
+            #         self.embed_grad_norm += current_grad_norm
+            #         self.avg_embed_grad_norm = self.grad_beta * self.avg_embed_grad_norm + (1.0 - self.grad_beta) * current_grad_norm
+            #         self.avg_embed_grad_norm_hat = self.avg_embed_grad_norm / (1.0 - self.embed_grad_beta_multiple)
+            #         self.embed_grad_beta_multiple *= self.grad_beta
+            #         # print(f"embed : current_grad_norm={current_grad_norm} avg_grad_norms={self.avg_embed_grad_norm} param_number={self.embed_param_number}")
+            #     elif "lm_head" in name:
+            #         self.lm_head_grad_norm_calculated_times += 1
+            #         self.lm_head_grad_norm += current_grad_norm
+            #         # print(f"lm_head_grad_norm={self.lm_head_grad_norm} lm_head_grad_norm_calculated_times = {self.lm_head_grad_norm_calculated_times}")
+            #         self.avg_lm_head_grad_norm = self.grad_beta * self.avg_lm_head_grad_norm + (1.0 - self.grad_beta) * current_grad_norm
+            #         self.avg_lm_head_grad_norm_hat = self.avg_lm_head_grad_norm / (1.0 - self.lm_head_grad_beta_multiple)
+            #         self.lm_head_grad_beta_multiple *= self.grad_beta
+            #         # print(f"lm_head : current_grad_norm={current_grad_norm} avg_grad_norms={self.avg_lm_head_grad_norm} param_number={self.lm_head_param_number}")
         
         for i in range(self.total_layers) :
             if len(self.current_grad_norms[i]) == 0 :
@@ -711,7 +711,7 @@ class BlockCoordinateOptimizer(Optimizer):
             freezing_this_layer = False
             if not self.include_embedding_and_lm_head and not any(p in name for p in self.active_param_prefixs) :
                 freezing_this_layer = True
-            if self.include_embedding_and_lm_head and not any (p in name for p in self.other_params) and not any(p in name for p in self.active_param_prefixs) :
+            if self.include_embedding_and_lm_head and not any(p in name for p in self.active_param_prefixs) and ('embed' not in name) and ('lm_head' not in name) :
                 freezing_this_layer = True
             if self.block_target_attn == False and ("att" in name):
                 freezing_this_layer = True
@@ -720,6 +720,8 @@ class BlockCoordinateOptimizer(Optimizer):
             if self.block_target_non_linear == False and (("fc" not in name) and ("mlp" not in name) and ("dense" not in name) and ("output" not in name) and ("ffn" not in name) and ("att" not in name)) :
                 freezing_this_layer = True
             if "classifier" in name :
+                freezing_this_layer = False
+            if self.include_embedding_and_lm_head and ('embed' in name or 'lm_head' in name):
                 freezing_this_layer = False
             # print(name, freezing_this_layer)
             # if "lm_head" not in name :

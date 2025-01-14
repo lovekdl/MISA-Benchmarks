@@ -120,3 +120,7 @@ class CustomizedTrainingArguments(TrainingArguments) :
         default=1.0,
         metadata={"help": "alpha of galore"},
     )
+    include_embedding_and_lm_head: Optional[bool] = field(
+        default=False,
+        metadata= {"help": "lisa or not"}
+    )
