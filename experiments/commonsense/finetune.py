@@ -593,6 +593,10 @@ def main() :
     if ("llama" in model_args.model_name_or_path.lower()) or ("mistral" in model_args.model_name_or_path.lower()):
             # LLaMA padding token
             tokenizer.pad_token_id = 0
+    # if "qwen" in model_args.model_name_or_path.lower():
+    #     tokenizer.pad_token_id = tokenizer.eos_token_id
+    
+    # tokenizer.padding_side = "left"  # Allow batched inference
     # print(torch.cuda.max_memory_allocated()/  (1024**3))
     # exit(0)
 
@@ -649,12 +653,8 @@ def main() :
             # if model.config.model_type == "llama":
             #     tokenizer = LlamaTokenizer.from_pretrained(model_args.model_name_or_path)
             # else:
-        tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
+        # tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
 
-    tokenizer.pad_token_id = (
-        0  # unk. we want this to be different from the eos token
-    )
-    tokenizer.padding_side = "left"  # Allow batched inference
 
     
     trainable = 0
@@ -665,7 +665,7 @@ def main() :
             trainable += p.numel()
         else: ntrainable += p.numel()
     for i in range(10):
-        print(f"Trainable parameters: {trainable} / {ntrainable}")
+        print(f"Trainable parameters: {trainable} / {ntrainable+trainable}")
     
     wandb.log({"trainable_param_ratio": trainable / (ntrainable+trainable)})
     

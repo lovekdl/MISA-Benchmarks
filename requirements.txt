@@ -6,3 +6,4 @@ transformers
 fire
 wandb
 sentencepiece
+scikit-learn
