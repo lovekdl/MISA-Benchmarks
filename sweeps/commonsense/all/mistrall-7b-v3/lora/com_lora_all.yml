@@ -1,4 +1,4 @@
-name: mistral_7b_lora_adamw_commonsense_r[8]_target[q,k,v,up,down]
+name: mistral_7b_lora_adamw_commonsense_r[16]_target[q,k,v,up,down]
 project: bcd_bench_commonsense
 command:
   - ${interpreter}
@@ -9,6 +9,8 @@ command:
   - --lora=True
   - --lora_r=8
   - --lora_alpha=16
+  - --lora_r=16
+  - --lora_alpha=32
   - --lora_target=q_proj,k_proj,v_proj,up_proj,down_proj
   - --optimizer=adamw
   - --dataset_path=datasets/commonsense170k
@@ -36,7 +38,11 @@ method: grid
 parameters:
   learning_rate:
     values:
+<<<<<<< HEAD
       - 1e-4
+=======
+      - 5e-5
+>>>>>>> fe2af5ce92228f9e569896b8f5369ada1b4a5116
   weight_decay:
     values:
       - 0

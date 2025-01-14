@@ -654,8 +654,6 @@ def main() :
             #     tokenizer = LlamaTokenizer.from_pretrained(model_args.model_name_or_path)
             # else:
         # tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
-
-
     
     trainable = 0
     ntrainable = 0
@@ -665,7 +663,7 @@ def main() :
             trainable += p.numel()
         else: ntrainable += p.numel()
     for i in range(10):
-        print(f"Trainable parameters: {trainable} / {ntrainable+trainable}")
+        print(f"Trainable parameters: {trainable} / {ntrainable+trainable}")\
     
     wandb.log({"trainable_param_ratio": trainable / (ntrainable+trainable)})
     

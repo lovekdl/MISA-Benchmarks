@@ -7,13 +7,13 @@ from transformers import (
     AutoTokenizer,
 )
 import torch
-# model_name = "meta-llama/Meta-Llama-3-8B"
-# model_name = "meta-llama/Llama-2-7b-hf"
-# model_name = "mistralai/Mistral-7B-v0.3"
 model_name = "Qwen/Qwen2.5-7B-Instruct"
-model_name = "FacebookAI/roberta-large"
+model_name = "meta-llama/Meta-Llama-3-8B"
+model_name = "meta-llama/Llama-2-7b-hf"
+model_name = "mistralai/Mistral-7B-v0.3"
+model_name = "Qwen/Qwen2.5-7B-Instruct"
 config = AutoConfig.from_pretrained(model_name)
-model = AutoModelForSequenceClassification.from_pretrained(
+model = AutoModelForCausalLM.from_pretrained(
         model_name,
         device_map='auto',
         config=config,
@@ -26,6 +26,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False, trust_remo
 # print(tokenizer.unk_token_id)
 # print(tokenizer.unk_token)
 # exit(0)
+
 print(model.config)
 # exit(0)
 sum = 0
