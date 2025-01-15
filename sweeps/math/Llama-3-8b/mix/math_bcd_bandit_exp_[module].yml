@@ -19,7 +19,6 @@ command:
   - --grad_importance_exp=0
   - --LRU=2
   - --granularity=module
-  - --max_grad_norm=10
   - --offload_optimizer_state=False
   - --bcd_interval_steps=50
   - --seed=114514
@@ -48,8 +47,9 @@ parameters:
       - 2e-4
   param_ratio_limit:
     values:
-      - 0.7
       - 0.9
+      - 0.7
+      - 0.5
   weight_decay:
     values:
       - 0
