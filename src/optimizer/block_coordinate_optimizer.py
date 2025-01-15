@@ -371,6 +371,8 @@ class BlockCoordinateOptimizer(Optimizer):
                 t_gradnorm = torch.linalg.norm(t_grad, ord=2)
             t_gradnorm /= math.sqrt(param.numel()) / self.hidden_size
             current_grad_norm = t_gradnorm
+            if math.isnan(current_grad_norm):
+                current_grad_norm = t_gradnorm = 10
             if self.bcd_order == "bandit_exp_divide_p" :
                 hp.grad /= self.p[id]
                 print(f"{name} divide {self.p[id]} grad:{torch.norm(hp.grad)}")
@@ -442,6 +444,11 @@ class BlockCoordinateOptimizer(Optimizer):
         
         population = list(population)
         weights = list(weights)
+        choosed_ratio = 0.0
+        if self.granularity == "module" :
+            k = 10000000
+        else :
+            self.param_ratio_limit = 1
 
         selected = []
         if self.testing_memory:
@@ -452,13 +459,10 @@ class BlockCoordinateOptimizer(Optimizer):
                     selected.append(i)
             return selected
 
+        
         w = [(x, id) for id, x in enumerate(self.last_used)]
         w = sorted(w, key=lambda item: item[0])
-        choosed_ratio = 0.0
-        if self.granularity == "module" :
-            k = 10000000
-        else :
-             self.param_ratio_limit = 1
+        
         # if w[0][0] == 0 :
         for i in range(self.total_layers) :
             if (w[i][0] == 0 or i < self.LRU) and k > 0:
@@ -469,6 +473,23 @@ class BlockCoordinateOptimizer(Optimizer):
                 index = population.index(w[i][1])
                 del population[index]
                 del weights[index]
+
+        if self.bcd_order=="bandit_exp_topK":
+            indices = sorted(range(len(weights)), key=lambda i: weights[i], reverse=True)
+            print(f"indices: {indices}")
+            while len(indices):
+                chosen = indices[0]
+                print(f"chosen:{chosen}")
+                if choosed_ratio + self.layers_param_number[chosen] / self.total_params_num <= self.param_ratio_limit:
+                    choosed_ratio += self.layers_param_number[chosen] / self.total_params_num
+                    selected.append(chosen)
+                    
+                del indices[0]
+                del weights[0]
+            
+            print(f"choosed params ratio:{choosed_ratio}")
+            return selected
+
 
         while len(population) and k > 0 :
             chosen = random.choices(population, weights=weights, k=1)[0]
@@ -641,7 +662,7 @@ class BlockCoordinateOptimizer(Optimizer):
             # print(f"before divide: {self.avg_grad_norms_hat}\n")
             # print(f"avg_grad_norms_hat: {self.avg_grad_norms_hat}")
             self.active_layers_indices = self.weighted_sample_without_replacement(population=range(len(layer_selection_probabilities)), weights=layer_selection_probabilities, k=self.bcd_activated_layers)
-        elif self.bcd_order == "bandit_exp" or self.bcd_order == "bandit_exp_divide_p" :
+        elif self.bcd_order == "bandit_exp" or self.bcd_order == "bandit_exp_divide_p" or self.bcd_order=="bandit_exp_topK" :
             for i in range(self.total_layers) :
                 if self.G_appo[i] == 0 :
                     continue

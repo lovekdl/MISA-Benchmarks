@@ -1,4 +1,4 @@
-name: qwen-2.5-7b_bcd_bandit_exp_gran[module][0.03/1][1e-5]_commonsense_target[all]
+name: qwen-2.5-7b_bcd_bandit_exp[LR2e-5]_gran[module][0.03/1]_commonsense_target[all]
 project: bcd_bench_commonsense
 command:
   - ${interpreter}
@@ -41,7 +41,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 1e-5
+      - 2e-5
   param_ratio_limit:
     values:
       - 0.03

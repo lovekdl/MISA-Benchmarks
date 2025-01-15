@@ -1,4 +1,4 @@
-name: llama-3-8b_MIX_bcd_bandit_exp_grand[module][0.03]_LRU[2]_clipnorm[10]_math_target[all]
+name: llama-3-8b_MIX_bcd_bandit_exp_grand[module][0.9/7]_LRU[2]_math_target[all]
 project: bcd_bench_math
 command:
   - ${interpreter}
@@ -48,9 +48,8 @@ parameters:
       - 2e-4
   param_ratio_limit:
     values:
-      - 0.3
-      - 0.1
-      - 0.5
+      - 0.7
+      - 0.9
   weight_decay:
     values:
       - 0

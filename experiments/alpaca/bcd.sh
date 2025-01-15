@@ -1,18 +1,18 @@
 python -u experiments/alpaca/finetune.py \
     --model_name_or_path meta-llama/Meta-Llama-3-8B \
-    --dataset_path datasets/alpaca_en\
+    --dataset_path vicgalle/alpaca-gpt4\
     --task_name alpaca \
     --do_train True \
     --do_eval False\
     --do_predict False \
-    --per_device_train_batch_size 2 \
-    --per_device_eval_batch_size 1 \
+    --per_device_train_batch_size 8 \
+    --per_device_eval_batch_size 2 \
     --optimizer bcd-optimizer \
     --bcd_interval_steps 30 \
     --offload_optimizer_state False \
     --seed 42 \
     --gradient_accumulation_steps 15 \
-    --num_train_epochs 5 \
+    --num_train_epochs 3 \
     --learning_rate 1e-5 \
     --lr_scheduler_type cosine\
     --max_seq_length 512 \
