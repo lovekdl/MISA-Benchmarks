@@ -654,7 +654,7 @@ def main() :
 
     run_name = generate_tag(model_args, data_args, training_args)
     import datetime
-    training_args.output_dir = f"save/{run_name}/{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}/"
+    training_args.output_dir = f"save/alpaca/{run_name}/{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}/"
 
     wandb.init(project='alpaca', name=run_name)
 
@@ -852,7 +852,6 @@ def main() :
 
     data = load_dataset(data_args.dataset_path)
     split_data = data["train"].train_test_split(test_size=500, seed=42)
-    training_args.eval_steps = 100
     # 将划分结果更新到原始的 DatasetDict 中
     train_data = split_data["train"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
     valid_data = split_data["test"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
@@ -878,9 +877,9 @@ def main() :
         )
     from utils.callbacks import MemoryTimeConsumptionCallback
     trainer.add_callback(MemoryTimeConsumptionCallback(trainer))
-    trainer.save("")
 
     train_result = trainer.train()
+    trainer.save_model()
     metrics = train_result.metrics
     max_train_samples = (
         data_args.max_train_samples if data_args.max_train_samples is not None else len(train_data)
