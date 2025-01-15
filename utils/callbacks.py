@@ -412,6 +412,7 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
 
     def extract_answer_letter(self, sentence: str) -> str:
         sentence_ = sentence.strip()
+        sentence_ = ''.join(reversed(sentence_))
         pred_answers = re.findall(r'A|B|C|D|E', sentence_)
         if pred_answers:
             if not pred_answers:

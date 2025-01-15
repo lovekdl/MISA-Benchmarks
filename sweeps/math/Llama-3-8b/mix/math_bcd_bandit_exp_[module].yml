@@ -1,4 +1,4 @@
-name: llama-3-8b_MIX_bcd_bandit_exp_grand[module][0.05/7/9]_LRU[2]_math_target[all]
+name: llama-3-8b_MIX_bcd_bandit_exp_grand[module][0.9/7]_LRU[2]_math_target[all]
 project: bcd_bench_math
 command:
   - ${interpreter}

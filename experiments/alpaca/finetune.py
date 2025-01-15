@@ -116,7 +116,6 @@ class DataTrainingArguments:
         },
     ),
 
-
 @dataclass
 class ModelArguments:
     """
@@ -163,6 +162,92 @@ class ModelArguments:
                     "with private models)."
         },
     )
+
+    # prefix-tuning parameters
+    add_enc_prefix: bool = field(
+        default=False,
+        metadata={"help": "Whether use prefix tuning"},
+    )
+    add_dec_prefix: bool = field(
+        default=False,
+        metadata={"help": "Whether use prefix tuning"},
+    )
+    add_cross_prefix: bool = field(
+        default=False,
+        metadata={"help": "Whether use prefix tuning"},
+    )
+    prefix_len: Optional[int] = field(
+        default=10,
+        metadata={"help": "length of prefix tokens"},
+    )
+    mid_dim: Optional[int] = field(
+        default=512,
+        metadata={"help": "dim of middle layer"},
+    )
+    # bitfit parameters
+    tune_bias: bool = field(
+        default=False,
+        metadata={"help": "Whether tune bias terms"},
+    )
+    # LoRA parameters
+    lora: bool = field(
+        default=False,
+        metadata={"help": "Whether to use lora finetuning"},
+    )
+    lora_r: Optional[int] = field(
+        default=8,
+        metadata={"help": "rank of lora"},
+    )
+    lora_alpha: Optional[int] = field(
+        default=16,
+        metadata={"help": "scaling = alpha / r"},
+    )
+    lora_target: Optional[str] = field(
+        default='all',
+        metadata={"help": "lora target"},
+    )
+    use_dora:Optional[bool] = field(
+        default=False,
+        metadata={"help":"use dora finetuning."}
+    )
+    drop_first_layers: Optional[int] = field(
+        default=0,
+        metadata={
+            "help": "drop first k layers, work for both prefix and adapter, freeze transformer layers if fine-tuning"},
+    )
+    drop_first_adapter_layers: Optional[int] = field(
+        default=0,
+        metadata={"help": "drop first k adapter layers"},
+    )
+    drop_first_prefix_layers_enc: Optional[int] = field(
+        default=0,
+        metadata={"help": "drop first k prefix layers"},
+    )
+    drop_first_prefix_layers_dec: Optional[int] = field(
+        default=0,
+        metadata={"help": "drop first k prefix layers"},
+    )
+    drop_first_prefix_layers_cross: Optional[int] = field(
+        default=0,
+        metadata={"help": "drop first k prefix layers"},
+    )
+    add_adapter_gate: bool = field(
+        default=True,
+        metadata={"help": "add a gate to the adapter"},
+    )
+    add_prefix_gate: bool = field(
+        default=True,
+        metadata={"help": "add a gate to the prefix"},
+    )
+    add_lora_gate: bool = field(
+        default=True,
+        metadata={"help": "add a gate to the lora"},
+    )
+    add_central_gate: bool = field(
+        default=False,
+        metadata={"help": "add a shared gate"},
+    )
+
 
     # prefix-tuning parameters
     add_enc_prefix: bool = field(
@@ -526,12 +611,22 @@ def generate_tag(model_args, data_args, training_args) :
     args = training_args
     if args.optimizer == "bcd-optimizer" :
         run_name = "BCD"
+        if args.include_embedding_and_lm_head:
+            run_name = "LISA"
+        if model_args.lora:
+            run_name = "Mix_lora_bcd"
+            training_args.mix_lora = True
         if args.only_layer != -1:
             run_name += f"-only_layer{args.only_layer}"
             run_name += f"-TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-{args.bcd_base_optimizer}-LR{args.learning_rate}"
         else :
             run_name += f"-{args.bcd_activated_layers}layers-interval{args.bcd_interval_steps}-order{args.bcd_update_order}-TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-{args.bcd_base_optimizer}-LR{args.learning_rate}"
-        
+        if args.offload_optimizer_state:
+            run_name += f"—OffloadOptim"
+        run_name += f"Gran[{args.granularity}]"
+        if args.granularity == 'module' :
+            run_name += f"[{args.param_ratio_limit}]"
+
         targets = []
         if args.bcd_target_attn:
             targets.append("attn")
@@ -558,6 +653,8 @@ def main() :
         data_args.task_name = data_args.dataset_path
 
     run_name = generate_tag(model_args, data_args, training_args)
+    import datetime
+    training_args.output_dir = f"save/{run_name}/{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}/"
 
     wandb.init(project='alpaca', name=run_name)
 
@@ -580,6 +677,7 @@ def main() :
     if ("llama" in model_args.model_name_or_path.lower()) or ("mistral" in model_args.model_name_or_path.lower()):
             # LLaMA padding token
             tokenizer.pad_token_id = 0
+    tokenizer.padding_side = "left"
     # print(torch.cuda.max_memory_allocated()/  (1024**3))
     # exit(0)
 
@@ -626,32 +724,27 @@ def main() :
             "lora_dropout": 0.05,
         }
         lora_config = LoraConfig(
-                task_type=TaskType.SEQ_CLS,
+                task_type=TaskType.CAUSAL_LM,
                 inference_mode=False,
-                use_dora=False,
+                use_dora=model_args.use_dora,
                 **peft_kwargs,
             )
         model = get_peft_model(model, lora_config)
-        trainable = 0
-        ntrainable = 0
-        for n,p in model.named_parameters() :
-            print(n, p.requires_grad, p.numel())
-            if p.requires_grad :
-                trainable += p.numel()
-            else: ntrainable += p.numel()
-        for i in range(10):
-            print(f"Trainable parameters: {trainable} / {ntrainable+ trainable}")
-
             # if model.config.model_type == "llama":
             #     tokenizer = LlamaTokenizer.from_pretrained(model_args.model_name_or_path)
             # else:
-        tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
 
-        tokenizer.pad_token_id = (
-            0  # unk. we want this to be different from the eos token
-        )
-        tokenizer.padding_side = "left"  # Allow batched inference
-
+    trainable = 0
+    ntrainable = 0
+    for n,p in model.named_parameters() :
+        print(n, p.requires_grad, p.numel())
+        if p.requires_grad :
+            trainable += p.numel()
+        else: ntrainable += p.numel()
+    for i in range(10):
+        print(f"Trainable parameters: {trainable} / {ntrainable+trainable}")
+    
+    wandb.log({"trainable_param_ratio": trainable / (ntrainable+trainable)})
     
     
     def tokenize( prompt, add_eos_token=True):
@@ -758,23 +851,26 @@ def main() :
 
 
     data = load_dataset(data_args.dataset_path)
-    train_data = data["train"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
-
-    do_eval = False
-    eval_strategy = training_args.eval_strategy
-    if training_args.do_eval:
-        do_eval = True
-        training_args.do_eval = 'no'
-        training_args.eval_strategy = 'no'
-        training_args.per_device_eval_batch_size = 1
+    split_data = data["train"].train_test_split(test_size=500, seed=42)
+    training_args.eval_steps = 100
+    # 将划分结果更新到原始的 DatasetDict 中
+    train_data = split_data["train"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
+    valid_data = split_data["test"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
+    
+    # do_eval = False
+    # eval_strategy = training_args.eval_strategy
+    # if training_args.do_eval:
+    #     do_eval = True
+    #     training_args.do_eval = 'no'
+    #     training_args.eval_strategy = 'no'
+    #     training_args.per_device_eval_batch_size = 1
     
     print(train_data)
     trainer = OurTrainer(
         model=model,
         args=training_args,
         train_dataset=train_data if training_args.do_train else None,
-        eval_dataset=None,
-        # compute_metrics=compute_metrics,
+        eval_dataset=valid_data,
         tokenizer=tokenizer,
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
@@ -782,7 +878,7 @@ def main() :
         )
     from utils.callbacks import MemoryTimeConsumptionCallback
     trainer.add_callback(MemoryTimeConsumptionCallback(trainer))
-
+    trainer.save("")
 
     train_result = trainer.train()
     metrics = train_result.metrics
