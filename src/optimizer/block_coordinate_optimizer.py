@@ -371,6 +371,8 @@ class BlockCoordinateOptimizer(Optimizer):
                 t_gradnorm = torch.linalg.norm(t_grad, ord=2)
             t_gradnorm /= math.sqrt(param.numel()) / self.hidden_size
             current_grad_norm = t_gradnorm
+            if math.isnan(current_grad_norm):
+                current_grad_norm = t_gradnorm = 10
             if self.bcd_order == "bandit_exp_divide_p" :
                 hp.grad /= self.p[id]
                 print(f"{name} divide {self.p[id]} grad:{torch.norm(hp.grad)}")
