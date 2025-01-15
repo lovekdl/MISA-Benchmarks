@@ -418,7 +418,7 @@ class BlockCoordinateOptimizer(Optimizer):
                 continue
             self.grad_norms_calculated_times[i] += 1
             current_grad_norm = torch.norm(torch.tensor(self.current_grad_norms[i])).to(torch.float32).item()
-            t_gradnorm_layer = torch.norm(torch.tensor(self.t_grad_norms[i]))
+            # t_gradnorm_layer = torch.norm(torch.tensor(self.t_grad_norms[i]))
             # wandb.log({f"layer{i} grad norm": current_grad_norm})
 
             if self.granularity == 'layer':
