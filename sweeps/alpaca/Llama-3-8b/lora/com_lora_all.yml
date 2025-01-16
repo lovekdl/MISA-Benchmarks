@@ -21,7 +21,7 @@ command:
   - --eval_steps=100
   - --eval_on_start=True
   - --max_seq_length=512
-  - --eval_strategy=epoch
+  - --eval_strategy=steps
   - --save_strategy=no
   - --num_train_epochs=3
   - --output_dir=experiments/glue_finetuning/results/Adam/alpaca/

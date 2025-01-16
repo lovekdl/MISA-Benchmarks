@@ -38,7 +38,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 5e-6
+      - 7e-5
   bcd_activated_layers:
     values:
       - 1

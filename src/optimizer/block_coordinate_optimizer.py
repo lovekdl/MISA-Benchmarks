@@ -308,12 +308,14 @@ class BlockCoordinateOptimizer(Optimizer):
         self.record_mark = True
         
         self._update_lr()
-        self._grad_to_hp()
+        if not self.mix_lora: 
+            self._grad_to_hp()
         self.calculate_grad_norm_for_each_layer()
         self.base_optimizer.step(*args, **kwargs)
         
-        self._clean_hp_grad()
-        self._update_param()
+        if not self.mix_lora: 
+            self._clean_hp_grad()
+            self._update_param()
 
         self.global_step += 1
 
@@ -351,15 +353,22 @@ class BlockCoordinateOptimizer(Optimizer):
         import re
 
         self.current_grad_norms = [[] for _ in range(self.total_layers)]
+        self.weight_norms = [[] for _ in range(self.total_layers)]
         self.t_grad_norms = [[] for _ in range(self.total_layers)]
         for name, param in self.named_parameters_list:
+            # print(name, param.dtype)
             if not param.requires_grad  : 
                 continue
             for j in range(self.total_layers) :
                 if(self.block_prefix_list[j][0] in name) :
                     id = j
                     break
-            hp = self.lp_to_hp[param]
+
+            dt = param.dtype
+            if not self.mix_lora:
+                hp = self.lp_to_hp[param]
+            else:
+                hp = param
             
             # grad = (param.to(dtype=torch.float32) - hp).to(torch.float16)
             # current_grad_norm = torch.norm(grad).to(torch.float32).item()
@@ -370,6 +379,7 @@ class BlockCoordinateOptimizer(Optimizer):
             elif self.normalization_type == "2-norm" :
                 t_gradnorm = torch.linalg.norm(t_grad, ord=2)
             t_gradnorm /= math.sqrt(param.numel()) / self.hidden_size
+            weight_norm = torch.norm(hp)
             current_grad_norm = t_gradnorm
             if math.isnan(current_grad_norm):
                 current_grad_norm = t_gradnorm = 10
@@ -394,6 +404,7 @@ class BlockCoordinateOptimizer(Optimizer):
                     # self.current_grad_norms[i].append(current_grad_norm)
                     self.current_grad_norms[i].append(current_grad_norm)
                     self.t_grad_norms[i].append(t_gradnorm)
+                    self.weight_norms[i].append(weight_norm)
                     is_layer_param = True
                     break
             # if not is_layer_param :
@@ -418,13 +429,14 @@ class BlockCoordinateOptimizer(Optimizer):
                 continue
             self.grad_norms_calculated_times[i] += 1
             current_grad_norm = torch.norm(torch.tensor(self.current_grad_norms[i])).to(torch.float32).item()
+            current_weight_norm = torch.norm(torch.tensor(self.weight_norms[i])).to(torch.float32).item()
             # t_gradnorm_layer = torch.norm(torch.tensor(self.t_grad_norms[i]))
             # wandb.log({f"layer{i} grad norm": current_grad_norm})
 
             if self.granularity == 'layer':
-                print(f"layer{i} grad norm: {current_grad_norm}")
+                print(f"layer{i} grad norm: {current_grad_norm}, weightnorm:{round(current_weight_norm, 2)}")
             else :
-                print(f"{self.module_names[i]} grad norm: {current_grad_norm}")
+                print(f"{self.module_names[i]} grad norm:{round(current_grad_norm, 2)}, weightnorm:{round(current_weight_norm, 2)}, {dt}")
 
             # print("value1 : ", math.log(1.0+current_grad_norm) ** 2)
             # print("value2 : ", (self.total_layers * self.p[i] * self.p[i]))
@@ -438,7 +450,7 @@ class BlockCoordinateOptimizer(Optimizer):
             self.layers_grad_beta_multiple[i] *= self.grad_beta
             self.last_grad_norms[i] += current_grad_norm
             # print(f"layer {i} : current_grad_norm={current_grad_norm} avg_grad_norms={self.avg_grad_norms[i]} param_number={self.layers_param_number[i]}")
-
+        print("test:", len(self.param_idx2hp), len(self.lp_to_hp))
 
     def weighted_sample_without_replacement(self, population, weights, k):
         
@@ -754,18 +766,18 @@ class BlockCoordinateOptimizer(Optimizer):
                         self.module_selected_times[j] += 1
 
             if freezing_this_layer:
-                param.requires_grad_(False)
                 param.grad = None
+                param.requires_grad_(False)
+                
                 # print("NOT activated name: ", name)
             else:
-
-                param_hp = param.clone().float().detach().to(param.device)
                 param.requires_grad_(True)
-                param_hp.requires_grad = True
-                
-                self.param_idx2lp[i] = param
-                self.param_idx2hp[i] = param_hp
-                self.lp_to_hp[param] = param_hp
+                if not self.mix_lora:
+                    self.param_idx2lp[i] = param
+                    param_hp = param.clone().float().detach().to(param.device)
+                    param_hp.requires_grad = True
+                    self.param_idx2hp[i] = param_hp
+                    self.lp_to_hp[param] = param_hp
                 # self.hp_to_id[param_hp] = i
                 # print(f"THE LENGTH IS {i} :")
                 # print(len(self.param_idx2lp))
@@ -774,10 +786,15 @@ class BlockCoordinateOptimizer(Optimizer):
                 # if self.offload_optimizer_state:
                 
                 if "bias" not in name and not isinstance(param, tuple(ALL_LAYERNORM_LAYERS)):
-                    active_param_groups[0]['params'].append(param_hp)
-                    # active_param_groups[0]['params'].append(param)
+                    if not self.mix_lora:
+                        active_param_groups[0]['params'].append(param_hp)
+                    else:
+                        active_param_groups[0]['params'].append(param)
                 else:
-                    active_param_groups[1]['params'].append(param_hp)
+                    if not self.mix_lora:
+                        active_param_groups[1]['params'].append(param_hp)
+                    else :
+                        active_param_groups[1]['params'].append(param)
                     # active_param_groups[1]['params'].append(param)
                 
                 if verbose >= 2:
@@ -845,7 +862,8 @@ class BlockCoordinateOptimizer(Optimizer):
 
         else :
             # Clean the optimizer state
-            self.base_optimizer.state = defaultdict(lambda: {})
+            if not self.mix_lora:
+                self.base_optimizer.state = defaultdict(lambda: {})
         
         # for n, p in self.named_parameters_list :
         #     if p not in self.lp_to_hp:
