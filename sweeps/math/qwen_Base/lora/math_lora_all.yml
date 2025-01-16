@@ -1,4 +1,4 @@
-name: QBase-7b_lora[R=8]_adamw_math_target[all]
+name: QBase-7b_lora[R=8]_adamw_math_target[q_v_up_down]
 project: bcd_bench_math
 command:
   - ${interpreter}
