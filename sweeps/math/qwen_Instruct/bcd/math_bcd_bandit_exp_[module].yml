@@ -1,4 +1,4 @@
-name: Qwen-7b_bcd_bandit_exp_grand[module][0.03]_LRU[2]_clipnorm[10]_math_target[all]
+name: Qwen-7b_bcd[lr1e=5]_bandit_exp_grand[module][0.03]_LRU[2]_clipnorm[10]_math_target[all]
 project: bcd_bench_math
 command:
   - ${interpreter}
@@ -41,8 +41,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 5e-6
-      - 5e-5
+      - 1e-5
   param_ratio_limit:
     values:
       - 0.03

@@ -1,24 +1,29 @@
 python -u experiments/alpaca/finetune.py \
     --model_name_or_path meta-llama/Meta-Llama-3-8B \
-    --dataset_path datasets/alpaca_en\
+    --dataset_path vicgalle/alpaca-gpt4\
     --task_name alpaca \
     --do_train True \
-    --do_eval False\
+    --do_eval True\
     --do_predict False \
-    --per_device_train_batch_size 2 \
-    --per_device_eval_batch_size 1 \
+    --per_device_train_batch_size 4 \
+    --gradient_accumulation_steps 4 \
+    --per_device_eval_batch_size 8 \
+    --eval_on_start True \
+    --granularity module \
     --optimizer bcd-optimizer \
-    --bcd_interval_steps 30 \
+    --bcd_update_order bandit_exp \
+    --LRU 2 \
+    --bcd_interval_steps 50 \
+    --eval_steps 50 \
     --offload_optimizer_state False \
-    --seed 42 \
-    --gradient_accumulation_steps 15 \
-    --num_train_epochs 5 \
-    --learning_rate 1e-5 \
+    --seed 123 \
+    --num_train_epochs 3 \
+    --learning_rate 1e-6 \
     --lr_scheduler_type cosine\
     --max_seq_length 512 \
     --logging_steps 1 \
     --save_total_limit 0 \
-    --evaluation_strategy epoch \
+    --eval_strategy steps \
     --save_strategy no \
     --overwrite_output_dir \
     --output_dir result/lora/test  \

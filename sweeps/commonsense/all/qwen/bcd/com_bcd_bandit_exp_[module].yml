@@ -41,7 +41,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 5e-6
+      - 5e-5
   param_ratio_limit:
     values:
       - 0.03
