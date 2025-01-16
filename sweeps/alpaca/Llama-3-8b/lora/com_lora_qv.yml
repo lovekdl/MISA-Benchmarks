@@ -1,4 +1,4 @@
-name: llama-3-8b_lora_adamw_alpaca_r[8]_target[q,k,v,up,down]
+name: llama-3-8b_lora_adamw_alpaca_r[16]_target[q,v]
 project: bcd_bench_alpaca
 command:
   - ${interpreter}
@@ -8,9 +8,9 @@ command:
   - --model_name_or_path=meta-llama/Meta-Llama-3-8B
   - --task_name=alpaca
   - --lora=True
-  - --lora_r=8
-  - --lora_alpha=16
-  - --lora_target=q_proj,k_proj,v_proj,up_proj,down_proj
+  - --lora_r=16
+  - --lora_alpha=32
+  - --lora_target=q_proj,v_proj
   - --optimizer=adamw
   - --seed=123
   - --report_to=wandb
@@ -21,7 +21,7 @@ command:
   - --eval_steps=100
   - --eval_on_start=True
   - --max_seq_length=512
-  - --eval_strategy=epoch
+  - --eval_strategy=steps
   - --save_strategy=no
   - --num_train_epochs=3
   - --output_dir=experiments/glue_finetuning/results/Adam/alpaca/

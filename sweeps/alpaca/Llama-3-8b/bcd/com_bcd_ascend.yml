@@ -26,7 +26,7 @@ command:
   - --eval_on_start=True
   - --save_strategy=no
   - --num_train_epochs=3
-  - --eval_strategy=epoch
+  - --eval_strategy=steps
   - --output_dir=saves/
   - --do_eval=True
   - --do_train=True 

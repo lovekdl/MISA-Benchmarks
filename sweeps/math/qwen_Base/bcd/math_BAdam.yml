@@ -1,4 +1,4 @@
-name: QBase-7b_BAdam_clip[10.0]_adamw_math_target[all]
+name: QBase-7b_BAdam_clip[10.0]_LR[1e-5]_adamw_math_target[all]
 project: bcd_bench_math
 command:
   - ${interpreter}
@@ -38,7 +38,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 5e-5
+      - 1e-5
   bcd_activated_layers:
     values:
       - 1
