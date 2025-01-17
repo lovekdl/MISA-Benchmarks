@@ -600,6 +600,14 @@ def main() :
     # print(torch.cuda.max_memory_allocated()/  (1024**3))
     # exit(0)
 
+    # if model_args.lora:
+    #     from utils.lora_module import convert_linear_layer_to_lora,only_optimize_lora_parameters
+    #     lora_target = model_args.lora_target
+    #     if isinstance(lora_target, str):
+    #         lora_target = [name.strip() for name in lora_target.split(",")]
+    #     model = convert_linear_layer_to_lora(model, lora_target, model_args.lora_r, lora_scaling = model_args.lora_alpha, lora_dropout=0.05)
+    #     model = only_optimize_lora_parameters(model)
+
     if model_args.lora:
         def find_all_linear_modules(model: "PreTrainedModel") -> list[str]:
             r"""
@@ -772,8 +780,14 @@ def main() :
         data = load_dataset("json", data_files=data_args.dataset_path)
     else:
         data = load_dataset(data_args.dataset_path)
-    train_data = data["train"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
+    # train_data = data["train"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
     
+    # training_args.eval_on_start=True
+    split_data = data["train"].train_test_split(test_size=200, seed=training_args.seed)
+    # 将划分结果更新到原始的 DatasetDict 中
+    train_data = split_data["train"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
+    valid_data = split_data["test"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
+
     # load test dataset 
     test_names = ['AQuA', 'mawps', 'GSM8K', 'SVAMP']
     test_data = {}
@@ -786,20 +800,23 @@ def main() :
 
 
 
-    do_eval = False
-    eval_strategy = training_args.eval_strategy
-    if training_args.do_eval:
-        do_eval = True
-        training_args.do_eval = 'no'
-        training_args.eval_strategy = 'no'
+    # do_eval = False
+    # eval_strategy = training_args.eval_strategy
+    # if training_args.do_eval:
+    #     do_eval = True
+    #     training_args.do_eval = 'no'
+    #     training_args.eval_strategy = 'no'
     
     print(train_data)
     training_args.per_device_eval_batch_size = 1
+    training_args.eval_strategy="steps"
+    training_args.eval_steps=50
+    training_args.eval_on_start=True
     trainer = OurTrainer(
         model=model,
         args=training_args,
         train_dataset=train_data if training_args.do_train else None,
-        eval_dataset=None,
+        eval_dataset=valid_data,
         # compute_metrics=compute_metrics,
         tokenizer=tokenizer,
         data_collator=transformers.DataCollatorForSeq2Seq(
@@ -808,16 +825,16 @@ def main() :
         )
     from utils.callbacks import MemoryTimeConsumptionCallback, MathReasoningEvaluateCallback
     trainer.add_callback(MemoryTimeConsumptionCallback(trainer))
-    if do_eval :  
-            trainer.add_callback(MathReasoningEvaluateCallback(
-                trainer=trainer,
-                model=model,
-                tokenizer=tokenizer,
-                test_dataset=test_data,
-                dataset_name=data_args.task_name,
-                eval_strategy=eval_strategy,
-                args=training_args,
-                ))
+    # if do_eval :  
+    trainer.add_callback(MathReasoningEvaluateCallback(
+        trainer=trainer,
+        model=model,
+        tokenizer=tokenizer,
+        test_dataset=test_data,
+        dataset_name=data_args.task_name,
+        eval_strategy='epoch',
+        args=training_args,
+        ))
 
 
     train_result = trainer.train()

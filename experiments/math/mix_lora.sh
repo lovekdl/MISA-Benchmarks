@@ -1,0 +1,31 @@
+python -u experiments/math/finetune.py \
+    --model_name_or_path Qwen/Qwen2.5-7B-Instruct \
+    --dataset_path datasets/Math10k\
+    --task_name math \
+    --do_train True \
+    --do_eval True\
+    --do_predict False \
+    --per_device_train_batch_size 4 \
+    --per_device_eval_batch_size 1 \
+    --bcd_target_attn=True \
+    --bcd_target_mlp=True \
+    --bcd_update_order=bandit_exp \
+    --lora True \
+    --lora_target q_proj,v_proj,k_proj,o_proj \
+    --optimizer bcd-optimizer \
+    --lora_r 16 \
+    --lora_alpha 32 \
+    --seed 42 \
+    --gradient_accumulation_steps 1 \
+    --num_train_epochs 5 \
+    --learning_rate 5e-6 \
+    --lr_scheduler_type cosine\
+    --max_seq_length 512 \
+    --logging_steps 1 \
+    --save_total_limit 0 \
+    --evaluation_strategy epoch \
+    --save_strategy no \
+    --overwrite_output_dir \
+    --output_dir result/lora/test  \
+    --report_to wandb \
+    --pad_to_max_length False \
