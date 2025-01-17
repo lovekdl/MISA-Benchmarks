@@ -532,7 +532,7 @@ def generate_tag(model_args, data_args, training_args) :
         if args.include_embedding_and_lm_head:
             run_name = "LISA"
         if model_args.lora:
-            run_name = "Mix_lora_bcd"
+            run_name = f"Mix_lora_bcd-rank{model_args.lora_r}-lora_target[{model_args.lora_target}]-alpha{model_args.lora_alpha}"
             training_args.mix_lora = True
         if args.only_layer != -1:
             run_name += f"-only_layer{args.only_layer}"
