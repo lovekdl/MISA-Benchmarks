@@ -1,11 +1,11 @@
-name: QBase_bcd_bandit_exp_gran[module][0.03]_LR[5e-5]_alpaca_target[all]
+name: llama-3-8b_LR[1e-6]_bcd_bandit_exp_gran[module][0.03]_alpaca_target[all]
 project: bcd_bench_alpaca
 command:
   - ${interpreter}
   - ${program}
   - ${args}
   - --dataset_path=vicgalle/alpaca-gpt4
-  - --model_name_or_path=Qwen/Qwen2.5-7B
+  - --model_name_or_path=meta-llama/Meta-Llama-3-8B
   - --task_name=alpaca
   - --bcd_target_attn=True
   - --bcd_target_mlp=True
@@ -17,7 +17,7 @@ command:
   - --grad_importance_exp=0
   - --offload_optimizer_state=False
   - --bcd_interval_steps=50
-  - --seed=123
+  - --seed=42
   - --report_to=wandb
   - --per_device_train_batch_size=4
   - --per_device_eval_batch_size=1 
@@ -43,7 +43,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 5e-5
+      - 1e-6
   param_ratio_limit:
     values:
       - 0.03

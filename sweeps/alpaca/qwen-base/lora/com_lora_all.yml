@@ -12,7 +12,7 @@ command:
   - --lora_alpha=16
   - --lora_target=q_proj,k_proj,v_proj,up_proj,down_proj
   - --optimizer=adamw
-  - --seed=123
+  - --seed=42
   - --report_to=wandb
   - --per_device_train_batch_size=4
   - --per_device_eval_batch_size=1 
@@ -34,6 +34,7 @@ command:
   - --report_to=wandb
   - --pad_to_max_length=False
   - --overwrite_output_dir=True
+  - --warmup_steps=50
 method: grid
 parameters:
   learning_rate:

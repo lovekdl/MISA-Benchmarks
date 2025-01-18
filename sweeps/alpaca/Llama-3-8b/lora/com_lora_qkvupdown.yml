@@ -1,4 +1,4 @@
-name: llama-3-8b_lora_adamw_alpaca_r[8]_target[q,k,v,up,down]
+name: llama-3-8b_lora_adamw_alpaca_r[8]_target[q,v,up,down]
 project: bcd_bench_alpaca
 command:
   - ${interpreter}
@@ -10,9 +10,9 @@ command:
   - --lora=True
   - --lora_r=8
   - --lora_alpha=16
-  - --lora_target=q_proj,k_proj,v_proj,up_proj,down_proj
+  - --lora_target=q_proj,v_proj,up_proj,down_proj
   - --optimizer=adamw
-  - --seed=123
+  - --seed=42
   - --report_to=wandb
   - --per_device_train_batch_size=4
   - --per_device_eval_batch_size=1 

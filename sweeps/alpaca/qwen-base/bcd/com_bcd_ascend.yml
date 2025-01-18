@@ -15,7 +15,7 @@ command:
   - --bcd_interval_steps=50
   - --grad_importance_exp=0
   - --task_name=modulealpaca
-  - --seed=123
+  - --seed=42
   - --report_to=wandb
   - --per_device_train_batch_size=4
   - --per_device_eval_batch_size=1 
@@ -37,6 +37,7 @@ command:
   - --pad_to_max_length=False
   - --overwrite_output_dir=True
   - --lr_scheduler_type=cosine
+  - --warmup_steps=50
 method: grid
 parameters:
   learning_rate:
