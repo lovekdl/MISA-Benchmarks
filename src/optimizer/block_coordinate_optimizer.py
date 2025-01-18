@@ -374,15 +374,16 @@ class BlockCoordinateOptimizer(Optimizer):
             # current_grad_norm = torch.norm(grad).to(torch.float32).item()
             t_grad = hp.grad
             
-            if self.normalization_type == "L-norm":
-                t_gradnorm = torch.norm(t_grad)
-            elif self.normalization_type == "2-norm" :
-                t_gradnorm = torch.linalg.norm(t_grad, ord=2)
+            t_gradnorm = torch.norm(t_grad)
+            # if self.normalization_type == "L-norm":
+            #     t_gradnorm = torch.norm(t_grad)
+            # elif self.normalization_type == "2-norm" :
+            #     t_gradnorm = torch.linalg.norm(t_grad, ord=2)
             t_gradnorm /= math.sqrt(param.numel()) / self.hidden_size
             weight_norm = torch.norm(hp)
             current_grad_norm = t_gradnorm
             if math.isnan(current_grad_norm):
-                current_grad_norm = t_gradnorm = 10
+                current_grad_norm = t_gradnorm = 0.9
             if self.bcd_order == "bandit_exp_divide_p" :
                 hp.grad /= self.p[id]
                 print(f"{name} divide {self.p[id]} grad:{torch.norm(hp.grad)}")
@@ -428,8 +429,13 @@ class BlockCoordinateOptimizer(Optimizer):
             if len(self.current_grad_norms[i]) == 0 :
                 continue
             self.grad_norms_calculated_times[i] += 1
-            current_grad_norm = torch.norm(torch.tensor(self.current_grad_norms[i])).to(torch.float32).item()
-            current_weight_norm = torch.norm(torch.tensor(self.weight_norms[i])).to(torch.float32).item()
+            try:
+            
+                current_grad_norm = torch.norm(torch.tensor(self.current_grad_norms[i])).to(torch.float32).item()
+                current_weight_norm = torch.norm(torch.tensor(self.weight_norms[i])).to(torch.float32).item()
+            except RuntimeError :
+                current_grad_norm = 0.9
+                current_weight_norm = -0.9
             # t_gradnorm_layer = torch.norm(torch.tensor(self.t_grad_norms[i]))
             # wandb.log({f"layer{i} grad norm": current_grad_norm})
 
