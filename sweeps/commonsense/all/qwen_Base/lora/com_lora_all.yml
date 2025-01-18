@@ -9,7 +9,7 @@ command:
   - --lora=True
   - --lora_r=8
   - --lora_alpha=16
-  - --lora_target=q_proj,k_proj,v_proj,up_proj,down_proj
+  - --lora_target=q_proj,v_proj,up_proj
   - --optimizer=adamw
   - --dataset_path=datasets/commonsense170k
   - --task_name=commonsense
