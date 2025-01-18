@@ -23,7 +23,6 @@ command:
   - --save_strategy=no
   - --num_train_epochs=6
   - --output_dir=experiments/glue_finetuning/results/Adam/math/
-  - --fp16=True
   - --do_eval=True
   - --do_train=True 
   - --do_predict=False
@@ -36,7 +35,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 2e-4
+      - 1e-5
   weight_decay:
     values:
       - 0

@@ -9,7 +9,7 @@ command:
   - --lora_r=16
   - --lora=True
   - --lora_alpha=32
-  - --lora_target=q_proj,k_proj,v_proj,up_proj,down_proj
+  - --lora_target=q_proj,v_proj,up_proj,down_proj
   - --fp16=True
   - --bcd_target_attn=True
   - --bcd_target_mlp=True
