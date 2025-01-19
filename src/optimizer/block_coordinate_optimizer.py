@@ -88,6 +88,8 @@ class BlockCoordinateOptimizer(Optimizer):
         self.only_layer = only_layer
         self.bcd_order = bcd_order
 
+        self.skip_nan = False
+
         self.device=device
         self.offload_rank = offload_rank
         # train a suffix layers of the model
@@ -317,11 +319,16 @@ class BlockCoordinateOptimizer(Optimizer):
         if not self.mix_lora: 
             self._grad_to_hp()
         self.calculate_grad_norm_for_each_layer()
-        self.base_optimizer.step(*args, **kwargs)
+        if not self.skip_nan:
+            self.base_optimizer.step(*args, **kwargs)
+            if not self.mix_lora: 
+                self._update_param()
+                
+        self.skip_nan = False
         
         if not self.mix_lora: 
             self._clean_hp_grad()
-            self._update_param()
+        
 
         self.global_step += 1
 
@@ -391,6 +398,7 @@ class BlockCoordinateOptimizer(Optimizer):
             current_grad_norm = t_gradnorm
             if math.isnan(current_grad_norm):
                 current_grad_norm = t_gradnorm = 0.9
+                self.skip_nan = True
             if self.bcd_order == "bandit_exp_divide_p" :
                 hp.grad /= self.p[id]
                 print(f"{name} divide {self.p[id]} grad:{torch.norm(hp.grad)}")
@@ -734,7 +742,8 @@ class BlockCoordinateOptimizer(Optimizer):
                     hp = self.lp_to_hp[p]
                     # print("test", n, self.param_to_id[p], self.retain_indices)
                     if self.param_to_id[p] not in self.retain_indices :
-                        del self.base_optimizer.state[hp]
+                        if hp in self.base_optimizer.state:
+                            del self.base_optimizer.state[hp]
                         del self.lp_to_hp[p]
                         del hp
             # print(f"len[lp_to_hp]: {len(self.lp_to_hp)}")
