@@ -833,7 +833,7 @@ class BlockCoordinateOptimizer(Optimizer):
                     self.lp_to_hp[param] = param_hp
 
                 else:
-                    hp_param = param
+                    param_hp = param
                     self.lp_to_hp[param] = param
                 # self.hp_to_id[param_hp] = i
                 # print(f"THE LENGTH IS {i} :")
