@@ -742,7 +742,8 @@ class BlockCoordinateOptimizer(Optimizer):
                     hp = self.lp_to_hp[p]
                     # print("test", n, self.param_to_id[p], self.retain_indices)
                     if self.param_to_id[p] not in self.retain_indices :
-                        del self.base_optimizer.state[hp]
+                        if hp in self.base_optimizer.state:
+                            del self.base_optimizer.state[hp]
                         del self.lp_to_hp[p]
                         del hp
             # print(f"len[lp_to_hp]: {len(self.lp_to_hp)}")
@@ -832,7 +833,7 @@ class BlockCoordinateOptimizer(Optimizer):
                     self.lp_to_hp[param] = param_hp
 
                 else:
-                    hp_param = param
+                    param_hp = param
                     self.lp_to_hp[param] = param
                 # self.hp_to_id[param_hp] = i
                 # print(f"THE LENGTH IS {i} :")

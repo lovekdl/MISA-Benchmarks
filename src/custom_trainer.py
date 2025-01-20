@@ -87,6 +87,7 @@ class OurTrainer(Trainer):
                 testing_memory = args.testing_memory, 
                 include_embedding_and_lm_head=args.include_embedding_and_lm_head,
                 mix_lora = args.mix_lora,
+                bandit_eta=args.bandit_eta
             )
         elif args.optimizer == "adam":
             self.optimizer = Adam(self.model.parameters(), lr=args.learning_rate)
