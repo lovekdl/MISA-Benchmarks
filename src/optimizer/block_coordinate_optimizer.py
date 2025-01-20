@@ -736,7 +736,8 @@ class BlockCoordinateOptimizer(Optimizer):
             if not self.mix_lora:
                 # self.base_optimizer.state = defaultdict(lambda: {})
                 for n, p in self.named_parameters_list:
-                    
+                    if self.include_embedding_and_lm_head and ('embed' in n or 'lm_head' in n):
+                        continue
                     if p not in self.lp_to_hp :
                         continue
                     hp = self.lp_to_hp[p]
@@ -819,7 +820,15 @@ class BlockCoordinateOptimizer(Optimizer):
                 
                 param.requires_grad_(True)
                 if not self.mix_lora:
-                    if self.param_to_id[param] not in self.retain_indices: 
+                    if self.include_embedding_and_lm_head and ('embed' in name or 'lm_head' in name) :
+                        if param in self.lp_to_hp:
+                            param_hp = self.lp_to_hp[param]
+                            param_hp.requires_grad = True
+                        else :
+                            param_hp = param.clone().float().detach().to(param.device)
+                            param_hp.requires_grad = True
+
+                    elif self.param_to_id[param] not in self.retain_indices: 
                         param_hp = param.clone().float().detach().to(param.device)
                         param_hp.requires_grad = True
                     else:
