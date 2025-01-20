@@ -106,7 +106,12 @@ class CustomizedTrainingArguments(TrainingArguments) :
             "help": ""
         },
     )
-
+    bandit_eta:float=field(
+        default=1.0,
+        metadata= {
+            "help":""
+        },
+    )
     # Galore
     galore:bool = field(
         default=False,

@@ -720,7 +720,36 @@ class BlockCoordinateOptimizer(Optimizer):
             # print(f"before divide: {self.avg_grad_norms_hat}\n")
             # print(f"avg_grad_norms_hat: {self.avg_grad_norms_hat}")
             self.active_layers_indices = self.weighted_sample_without_replacement(population=range(len(layer_selection_probabilities)), weights=layer_selection_probabilities, k=self.bcd_activated_layers)
-        
+        elif  self.bcd_order == 'bandit_sq':
+            for i in range(self.total_layers) :
+                if self.G_appo[i] == 0 :
+                    continue
+
+                # print(f"before G[i]={self.G[i]}")
+                self.G[i] = (1.0 - self.grad_beta) * self.G_appo[i] + self.grad_beta * self.G[i]
+
+                # print(f"middle G[i]={self.G[i]}")
+                self.G[i] /= (1.0 - (self.grad_beta**self.bandit_times[i]))
+
+                # print(f"after G[i]={self.G[i]}")
+                # print(f"divide:{(1.0 - (self.grad_beta**self.bandit_times[i]))}")
+                # print(f"after change {i}, G_appo={self.G_appo[i]}, self.G={self.G[i]}")
+                self.bandit_times[i] += 1
+                self.G_appo[i] = 0
+            print(f"G: {self.G}")
+            g_sum = sum([math.exp(self.bandit_eta*g*g) for g in self.G])
+            # print(max(self.G))
+            # print(f"index:{self.G.index(max(self.G))}")
+            # print(f"g_sum is {g_sum}")
+            layer_selection_probabilities = [ ((1-self.bandit_lambda)*math.exp(self.bandit_eta*g*g)/g_sum + (self.bandit_lambda*(1.0/self.total_layers))) for g in self.G]
+            self.p = layer_selection_probabilities
+            print(f"layer_selection_probabilities: {layer_selection_probabilities}")
+            assert len(layer_selection_probabilities) == self.total_layers
+            # print(f"before divide: {self.avg_grad_norms_hat}\n")
+            # print(f"avg_grad_norms_hat: {self.avg_grad_norms_hat}")
+            self.active_layers_indices = self.weighted_sample_without_replacement(population=range(len(layer_selection_probabilities)), weights=layer_selection_probabilities, k=self.bcd_activated_layers)
+       
+
         self.retain_indices = []
         for i in self.active_layers_indices:
             if i in self.last_active_layers_indices:
