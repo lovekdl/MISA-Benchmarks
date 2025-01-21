@@ -1,4 +1,4 @@
-name: llama-3-8b_bcd_bandit_sq[eta0.1]_grand[module][0.03]_LRU[0]_clipnorm[10]_math_target[all]
+name: llama-3-8b_bcd_bandit_sq[eta0.1]_LR[1e-5]_grand[module][0.03]_LRU[0]_clipnorm[10]_math_target[all]
 project: bcd_bench_math
 command:
   - ${interpreter}
@@ -42,7 +42,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 5e-6
+      - 1e-5
   param_ratio_limit:
     values:
       - 0.03

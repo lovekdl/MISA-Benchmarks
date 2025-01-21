@@ -1,21 +1,21 @@
-name: QBase-7b_LISA_[3epoch]_clipnorm[10]_math_target[all]
+name: llama-3-8b_bcd_bandit_sq_ETA[05]_LR[1e-5]_grand[module][0.03]_LRU[0]_clipnorm[10]_math_target[all]
 project: bcd_bench_math
 command:
   - ${interpreter}
   - ${program}
   - ${args}
-  - --model_name_or_path=Qwen/Qwen2.5-7B
+  - --model_name_or_path=meta-llama/Meta-Llama-3-8B
   - --task_name=math
   - --bcd_target_attn=True
-  - --include_embedding_and_lm_head=True
   - --bcd_target_mlp=True
-  - --bcd_update_order=random
+  - --bcd_update_order=bandit_sq
+  - --bandit_eta=0.5
   - --dataset_path=datasets/Math10k
   - --task_name=math
   - --optimizer=bcd-optimizer
   - --grad_importance_exp=0
-  - --LRU=2
-  - --granularity=layer
+  - --LRU=0
+  - --granularity=module
   - --max_grad_norm=10
   - --offload_optimizer_state=False
   - --bcd_interval_steps=50
@@ -42,7 +42,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 5e-5
+      - 1e-5
   param_ratio_limit:
     values:
       - 0.03
