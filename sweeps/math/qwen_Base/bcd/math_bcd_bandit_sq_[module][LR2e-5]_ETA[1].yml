@@ -1,4 +1,4 @@
-name: QBase-7b_bcd_bandit_sq_ETA[1]_LR[1e-5]_[3epoch]_grand[module][0.01]_LRU[1]_clipnorm[10]_math_target[all]_SEED[42]
+name: QBase-7b_bcd_bandit_sq_ETA[1]_LR[2e-5]_[3epoch]_grand[module][0.03]_LRU[0]_clipnorm[10]_math_target[all]_SEED[42]
 project: bcd_bench_math
 command:
   - ${interpreter}
@@ -14,7 +14,7 @@ command:
   - --task_name=math
   - --optimizer=bcd-optimizer
   - --grad_importance_exp=0
-  - --LRU=1
+  - --LRU=0
   - --granularity=module
   - --max_grad_norm=10
   - --offload_optimizer_state=False
@@ -42,10 +42,10 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 1e-5
+      - 2e-5
   param_ratio_limit:
     values:
-      - 0.01
+      - 0.03
   weight_decay:
     values:
       - 0
