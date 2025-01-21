@@ -1,30 +1,33 @@
-name: QBase-7b_BAdam_clip[10.0]_LR[1e-5]_adamw_math_target[all]
-project: bcd_bench_math
+name: QBase-2.5-7b_bcd_bandit_exp_LR[3e-6]_gran[module][0.03]_commonsense_target[all]
+project: bcd_bench_commonsense
 command:
   - ${interpreter}
   - ${program}
   - ${args}
   - --model_name_or_path=Qwen/Qwen2.5-7B
-  - --task_name=math
+  - --task_name=commonsense
   - --bcd_target_attn=True
   - --bcd_target_mlp=True
+  - --bcd_update_order=bandit_exp
+  - --dataset_path=datasets/commonsense170k
+  - --task_name=commonsense
   - --optimizer=bcd-optimizer
-  - --bcd_update_order=ascending
+  - --granularity=module
+  - --LRU=2
+  - --grad_importance_exp=0
+  - --offload_optimizer_state=False
   - --bcd_interval_steps=50
-  - --dataset_path=datasets/Math10k
-  - --task_name=math
   - --seed=42
   - --report_to=wandb
   - --per_device_train_batch_size=4
   - --per_device_eval_batch_size=1 
-  - --gradient_accumulation_steps=1
-  - --granularity=layer
+  - --gradient_accumulation_steps=4
   - --max_seq_length=512
-  - --max_grad_norm=10.0
+  - --eval_strategy=epoch
+  - --max_grad_norm=1
   - --save_strategy=no
   - --num_train_epochs=3
-  - --eval_strategy=epoch
-  - --output_dir=experiments/glue_finetuning/results/Adam/math/
+  - --output_dir=experiments/glue_finetuning/results/Adam/commonsense/
   - --do_eval=True
   - --do_train=True 
   - --do_predict=False
@@ -38,12 +41,12 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 1e-5
-  bcd_activated_layers:
+      - 3e-6
+  param_ratio_limit:
     values:
-      - 1
+      - 0.03
   weight_decay:
     values:
       - 0
 
-program: experiments/math/finetune.py
+program: experiments/commonsense/finetune_evaluate_all.py

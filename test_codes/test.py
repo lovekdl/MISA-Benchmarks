@@ -8,7 +8,8 @@ from transformers import (
 )
 import torch
 model_name = "Qwen/Qwen2.5-7B-Instruct"
-# model_name = "meta-llama/Meta-Llama-3-8B"
+model_name = "meta-llama/Meta-Llama-3-8B"
+model_name = "google/gemma-2-9b-it"
 # model_name = "meta-llama/Llama-2-7b-hf"
 # model_name = "mistralai/Mistral-7B-v0.3"
 model_name = "Qwen/Qwen2.5-7B"

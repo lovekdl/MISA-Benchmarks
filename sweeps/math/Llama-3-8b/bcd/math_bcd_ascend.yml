@@ -42,7 +42,6 @@ parameters:
   bcd_activated_layers:
     values:
       - 1
-      - 2
   weight_decay:
     values:
       - 0

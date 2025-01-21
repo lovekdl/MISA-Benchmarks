@@ -1,4 +1,4 @@
-name: QBase-2.5-7b_bcd_bandit_exp_LR[5e-6]_gran[module][0.03]_commonsense_target[all]
+name: QBase-2.5-7b_bcd_bandit_exp_LR[5e-6_NEW]_LRU[0]_gran[module][0.03]_commonsense_target[all]
 project: bcd_bench_commonsense
 command:
   - ${interpreter}
@@ -13,7 +13,7 @@ command:
   - --task_name=commonsense
   - --optimizer=bcd-optimizer
   - --granularity=module
-  - --LRU=2
+  - --LRU=0
   - --grad_importance_exp=0
   - --offload_optimizer_state=False
   - --bcd_interval_steps=50
