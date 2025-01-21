@@ -1,0 +1,53 @@
+name: QBase-7b_LISA_[3epoch]_clipnorm[10]_math_target[all]
+project: bcd_bench_math
+command:
+  - ${interpreter}
+  - ${program}
+  - ${args}
+  - --model_name_or_path=Qwen/Qwen2.5-7B
+  - --task_name=math
+  - --bcd_target_attn=True
+  - --include_embedding_and_lm_head=True
+  - --bcd_target_mlp=True
+  - --bcd_update_order=random
+  - --dataset_path=datasets/Math10k
+  - --task_name=math
+  - --optimizer=bcd-optimizer
+  - --grad_importance_exp=0
+  - --LRU=2
+  - --granularity=layer
+  - --max_grad_norm=10
+  - --offload_optimizer_state=False
+  - --bcd_interval_steps=50
+  - --seed=42
+  - --report_to=wandb
+  - --per_device_train_batch_size=4
+  - --per_device_eval_batch_size=1 
+  - --gradient_accumulation_steps=1
+  - --max_seq_length=512
+  - --eval_strategy=epoch
+  - --save_strategy=no
+  - --num_train_epochs=3
+  - --output_dir=experiments/glue_finetuning/results/Adam/math/
+  - --do_eval=True
+  - --do_train=True 
+  - --do_predict=False
+  - --logging_steps=1
+  - --save_total_limit=0
+  - --report_to=wandb
+  - --pad_to_max_length=False
+  - --overwrite_output_dir=True
+  - --lr_scheduler_type=linear
+method: grid
+parameters:
+  learning_rate:
+    values:
+      - 1e-5
+  param_ratio_limit:
+    values:
+      - 0.03
+  weight_decay:
+    values:
+      - 0
+
+program: experiments/math/finetune.py

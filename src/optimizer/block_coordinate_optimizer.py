@@ -737,6 +737,12 @@ class BlockCoordinateOptimizer(Optimizer):
                 self.bandit_times[i] += 1
                 self.G_appo[i] = 0
             print(f"G: {self.G}")
+            # g_max = max(self.G)  # 检查 G 的最大值
+            # if self.bandit_eta * g_max * g_max > 700:  # 阈值700为经验值，防止溢出
+            #     print("Warning: Value too large, potential overflow")
+            # else:
+            #     g_sum = sum([math.exp(self.bandit_eta * g * g) for g in self.G])
+            self.G = [min(g, 3.0) for g in self.G]
             g_sum = sum([math.exp(self.bandit_eta*g*g) for g in self.G])
             # print(max(self.G))
             # print(f"index:{self.G.index(max(self.G))}")
@@ -765,7 +771,8 @@ class BlockCoordinateOptimizer(Optimizer):
             if not self.mix_lora:
                 # self.base_optimizer.state = defaultdict(lambda: {})
                 for n, p in self.named_parameters_list:
-                    
+                    if self.include_embedding_and_lm_head and ('embed' in n or 'lm_head' in n):
+                        continue
                     if p not in self.lp_to_hp :
                         continue
                     hp = self.lp_to_hp[p]
@@ -848,7 +855,15 @@ class BlockCoordinateOptimizer(Optimizer):
                 
                 param.requires_grad_(True)
                 if not self.mix_lora:
-                    if self.param_to_id[param] not in self.retain_indices: 
+                    if self.include_embedding_and_lm_head and ('embed' in name or 'lm_head' in name) :
+                        if param in self.lp_to_hp:
+                            param_hp = self.lp_to_hp[param]
+                            param_hp.requires_grad = True
+                        else :
+                            param_hp = param.clone().float().detach().to(param.device)
+                            param_hp.requires_grad = True
+
+                    elif self.param_to_id[param] not in self.retain_indices: 
                         param_hp = param.clone().float().detach().to(param.device)
                         param_hp.requires_grad = True
                     else:

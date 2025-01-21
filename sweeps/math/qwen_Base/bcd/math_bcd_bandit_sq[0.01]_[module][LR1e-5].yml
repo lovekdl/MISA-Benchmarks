@@ -1,4 +1,4 @@
-name: QBase-7b_BAdam_clip[10.0]_LR[1e-5]_adamw_math_target[all]
+name: QBase-7b_bcd_bandit_sq_ETA[1]_LR[1e-5]_[3epoch]_grand[module][0.01]_LRU[1]_clipnorm[10]_math_target[all]_SEED[42]
 project: bcd_bench_math
 command:
   - ${interpreter}
@@ -8,22 +8,26 @@ command:
   - --task_name=math
   - --bcd_target_attn=True
   - --bcd_target_mlp=True
-  - --optimizer=bcd-optimizer
-  - --bcd_update_order=ascending
-  - --bcd_interval_steps=50
+  - --bcd_update_order=bandit_sq
+  - --bandit_eta=1
   - --dataset_path=datasets/Math10k
   - --task_name=math
+  - --optimizer=bcd-optimizer
+  - --grad_importance_exp=0
+  - --LRU=1
+  - --granularity=module
+  - --max_grad_norm=10
+  - --offload_optimizer_state=False
+  - --bcd_interval_steps=50
   - --seed=42
   - --report_to=wandb
   - --per_device_train_batch_size=4
   - --per_device_eval_batch_size=1 
   - --gradient_accumulation_steps=1
-  - --granularity=layer
   - --max_seq_length=512
-  - --max_grad_norm=10.0
+  - --eval_strategy=epoch
   - --save_strategy=no
   - --num_train_epochs=3
-  - --eval_strategy=epoch
   - --output_dir=experiments/glue_finetuning/results/Adam/math/
   - --do_eval=True
   - --do_train=True 
@@ -39,9 +43,9 @@ parameters:
   learning_rate:
     values:
       - 1e-5
-  bcd_activated_layers:
+  param_ratio_limit:
     values:
-      - 1
+      - 0.01
   weight_decay:
     values:
       - 0
