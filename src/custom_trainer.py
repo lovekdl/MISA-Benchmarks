@@ -1,4 +1,5 @@
 import torch
+from transformers.optimization import AdamW as tad
 from torch.optim import SGD, Adam, AdamW
 from torch import nn
 from transformers import Trainer
@@ -99,7 +100,7 @@ class OurTrainer(Trainer):
             #         p.requires_grad = False
             #     else:
             #         p.requires_grad = True
-            self.optimizer = AdamW(self.model.parameters(), lr=args.learning_rate)
+            self.optimizer = tad(self.model.parameters(), lr=args.learning_rate)
         else : raise NotImplementedError("We only support 3 optimizers: adam, sgd and adamw. ")
                 
         return super().create_optimizer()

@@ -590,6 +590,7 @@ def main() :
         use_fast=model_args.use_fast_tokenizer,
     )
     load_type = torch.float16
+
     if training_args.load_type == 'bf16':
         load_type = torch.bfloat16
     elif training_args.load_type == 'fp32':
