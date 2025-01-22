@@ -1,0 +1,43 @@
+name: llama-3-8b_lora_rank[16]_LR[5e-5]_adamw_math_target[q,v,up,down]
+project: bcd_bench_math
+command:
+  - ${interpreter}
+  - ${program}
+  - ${args}
+  - --model_name_or_path=meta-llama/Meta-Llama-3-8B
+  - --task_name=math
+  - --lora=True
+  - --lora_r=16
+  - --lora_alpha=32
+  - --lora_target=q_proj,v_proj,up_proj,down_proj
+  - --optimizer=adamw
+  - --dataset_path=datasets/Math10k
+  - --task_name=math
+  - --seed=42
+  - --report_to=wandb
+  - --per_device_train_batch_size=4
+  - --per_device_eval_batch_size=1 
+  - --gradient_accumulation_steps=1
+  - --max_seq_length=512
+  - --eval_strategy=epoch
+  - --save_strategy=no
+  - --num_train_epochs=3
+  - --output_dir=experiments/glue_finetuning/results/Adam/math/
+  - --do_eval=True
+  - --do_train=True 
+  - --do_predict=False
+  - --logging_steps=1
+  - --save_total_limit=0
+  - --report_to=wandb
+  - --pad_to_max_length=False
+  - --overwrite_output_dir=True
+method: grid
+parameters:
+  learning_rate:
+    values:
+      - 5e-5
+  weight_decay:
+    values:
+      - 0
+
+program: experiments/math/finetune.py
