@@ -586,11 +586,15 @@ def main() :
         model_args.model_name_or_path,
         use_fast=model_args.use_fast_tokenizer,
     )
+    load_type = torch.float16
+    if training_args.optimizer == 'adamw' and not model_args.lora:
+        load_type = torch.float32
+
     model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         device_map='auto',
         config=config,
-        torch_dtype=torch.float16,
+        torch_dtype=load_type,
     )
     print(torch.cuda.max_memory_allocated()/(1024**3))
     if ("llama" in model_args.model_name_or_path.lower()) or ("mistral" in model_args.model_name_or_path.lower()):
