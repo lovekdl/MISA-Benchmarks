@@ -112,11 +112,20 @@ class CustomizedTrainingArguments(TrainingArguments) :
             "help":""
         },
     )
+
+    load_type:str=field(
+        default="fp16",
+        metadata= {
+            "help":""
+        }
+    )
+
     # Galore
     galore:bool = field(
         default=False,
         metadata={"help": "whether to use galore"},
     )
+    
     galore_r: Optional[int] = field(
         default=16,
         metadata={"help": "rank of galore"},

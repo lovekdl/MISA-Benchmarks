@@ -559,6 +559,9 @@ def generate_tag(model_args, data_args, training_args) :
 
     else :
         run_name +=f"TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-OPTIM[{args.optimizer}]-LR{args.learning_rate}"
+    
+    if training_args.load_type != 'fp16':
+        run_name += f"-{training_args.load_type}"
     return run_name
 
 
@@ -587,9 +590,11 @@ def main() :
         use_fast=model_args.use_fast_tokenizer,
     )
     load_type = torch.float16
-    if training_args.optimizer == 'adamw' and not model_args.lora:
-        load_type = torch.float32
 
+    if training_args.load_type == 'bf16':
+        load_type = torch.bfloat16
+    elif training_args.load_type == 'fp32':
+        load_type = torch.float32
     model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         device_map='auto',
