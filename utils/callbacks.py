@@ -14,9 +14,11 @@ else:
     device = "cpu"
 
 class MemoryTimeConsumptionCallback(transformers.TrainerCallback) :
-    def __init__(self, trainer) -> None:
+    def __init__(self, trainer, mem_record=False) -> None:
         super().__init__()
         self.trainer = trainer
+        self.mem_list = []
+        self.mem_record = mem_record
     def on_step_begin(self, args, state, control, **kwargs):
         self.start = time.time()
     def on_step_end(self, args, state, control, **kwargs):
@@ -31,9 +33,13 @@ class MemoryTimeConsumptionCallback(transformers.TrainerCallback) :
         self.trainer.log({"peak_mem": max_memory_allocated / 1024 ** 3,
                     "step_consumption": train_step_duration * 1000})
         control.should_log = flag
-
         wandb.log({"peak_mem": max_memory_allocated / 1024 ** 3,
                     "step_consumption": train_step_duration * 1000})
+        
+
+        if self.mem_record:
+            self.mem_list.append(max_memory_allocated / 1024 ** 3)
+            print(self.mem_list)
 
 
 class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :

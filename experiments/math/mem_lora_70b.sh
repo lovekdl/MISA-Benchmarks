@@ -1,0 +1,34 @@
+python -u experiments/math/memory_test.py \
+    --model_name_or_path meta-llama/Meta-Llama-3-70B \
+    --dataset_path datasets/Math10k\
+    --task_name math \
+    --do_train True \
+    --do_eval True\
+    --do_predict False \
+    --bcd_update_order grad_distribution \
+    --offload_optimizer_state False \
+    --per_device_train_batch_size 1 \
+    --per_device_eval_batch_size 1 \
+    --lora True \
+    --lora_target q_proj,v_proj,k_proj,o_proj,up_proj,gate_proj,down_proj \
+    --optimizer adamw \
+    --lora_r 16 \
+    --lora_alpha 32 \
+    --param_ratio_limit 0.03 \
+    --bcd_activated_layers 7 \
+    --granularity module \
+    --seed 42 \
+    --gradient_accumulation_steps 1 \
+    --num_train_epochs 1 \
+    --learning_rate 5e-6 \
+    --lr_scheduler_type linear\
+    --max_seq_length 3000 \
+    --logging_steps 1 \
+    --save_total_limit 0 \
+    --evaluation_strategy epoch \
+    --save_strategy no \
+    --overwrite_output_dir \
+    --output_dir result/lora/test  \
+    --report_to wandb \
+    --pad_to_max_length False \
+    --testing_memory y \
