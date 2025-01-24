@@ -41,7 +41,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 1e-5
+      - 5e-6
   weight_decay:
     values:
       - 0
