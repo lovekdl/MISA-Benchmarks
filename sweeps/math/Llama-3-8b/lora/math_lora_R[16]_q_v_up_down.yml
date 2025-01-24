@@ -1,4 +1,4 @@
-name: llama-3-8b_lora_rank[16]_adamw_math_target[q,v,up,down]
+name: llama-3-8b_lora_rank[16]_LR[1e-4]_adamw_math_target[q,v,up,down]
 project: bcd_bench_math
 command:
   - ${interpreter}
@@ -35,7 +35,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 2e-4
+      - 1e-4
   weight_decay:
     values:
       - 0

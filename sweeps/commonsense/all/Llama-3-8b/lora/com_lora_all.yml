@@ -36,9 +36,9 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 1e-4
+      - 2e-4
   weight_decay:
     values:
       - 0
 
-program: experiments/commonsense/finetune_evaluate_all.py
+program: experiments/commonsense/old_finetune.py

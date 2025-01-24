@@ -207,10 +207,7 @@ class ModelArguments:
         default='all',
         metadata={"help": "lora target"},
     )
-    use_dora:Optional[bool] = field(
-        default=False,
-        metadata={"help":"use dora finetuning."}
-    )
+
     drop_first_layers: Optional[int] = field(
         default=0,
         metadata={
@@ -529,11 +526,6 @@ def generate_tag(model_args, data_args, training_args) :
     args = training_args
     if args.optimizer == "bcd-optimizer" :
         run_name = "BCD"
-        if args.include_embedding_and_lm_head:
-            run_name = "LISA"
-        if model_args.lora:
-            run_name = "Mix_lora_bcd"
-            training_args.mix_lora = True
         if args.only_layer != -1:
             run_name += f"-only_layer{args.only_layer}"
             run_name += f"-TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-{args.bcd_base_optimizer}-LR{args.learning_rate}"
@@ -542,8 +534,6 @@ def generate_tag(model_args, data_args, training_args) :
         if args.offload_optimizer_state:
             run_name += f"—OffloadOptim"
         run_name += f"Gran[{args.granularity}]"
-        if args.granularity == 'module' :
-            run_name += f"[{args.param_ratio_limit}]"
 
         targets = []
         if args.bcd_target_attn:
@@ -568,8 +558,6 @@ def main() :
         data_args.task_name = data_args.dataset_path
 
     run_name = generate_tag(model_args, data_args, training_args)
-    import datetime
-    training_args.output_dir = f"save/{run_name}/{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}/"
 
     wandb.init(project='test_project', name=run_name)
 
@@ -592,9 +580,6 @@ def main() :
     if ("llama" in model_args.model_name_or_path.lower()) or ("mistral" in model_args.model_name_or_path.lower()):
             # LLaMA padding token
             tokenizer.pad_token_id = 0
-    tokenizer.padding_side = "left"  # Allow batched inference
-
-    
     # print(torch.cuda.max_memory_allocated()/  (1024**3))
     # exit(0)
 
@@ -643,13 +628,20 @@ def main() :
         lora_config = LoraConfig(
                 task_type=TaskType.CAUSAL_LM,
                 inference_mode=False,
-                use_dora=model_args.use_dora,
+                use_dora=False,
                 **peft_kwargs,
             )
         model = get_peft_model(model, lora_config)
             # if model.config.model_type == "llama":
             #     tokenizer = LlamaTokenizer.from_pretrained(model_args.model_name_or_path)
             # else:
+        tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
+
+        tokenizer.pad_token_id = (
+            0  # unk. we want this to be different from the eos token
+        )
+        
+    tokenizer.padding_side = "left" 
 
     trainable = 0
     ntrainable = 0
@@ -659,7 +651,7 @@ def main() :
             trainable += p.numel()
         else: ntrainable += p.numel()
     for i in range(10):
-        print(f"Trainable parameters: {trainable} / {ntrainable+trainable}")
+        print(f"Trainable parameters: {trainable} / {ntrainable}")
     
     wandb.log({"trainable_param_ratio": trainable / (ntrainable+trainable)})
     
@@ -773,7 +765,7 @@ def main() :
     train_data = data["train"].shuffle(seed=training_args.seed).map(generate_and_tokenize_prompt)
     
     # load test dataset 
-    test_names = ['AQuA', 'mawps', 'GSM8K', 'SVAMP']
+    test_names = ['GSM8K', 'SVAMP', 'AQuA', 'mawps']
     test_data = {}
     for n in test_names:
         test_d = load_dataset(f'datasets/{n}')
