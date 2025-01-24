@@ -25,9 +25,12 @@ from pept_utils import training_utils, args_utils
 from pept_utils.dataloader import PreprocessedIterableDataset
 from pept_utils.modeling_llama import LlamaForCausalLM
 
-from optimizer.block_coordinate_optimizer import BlockCoordinateOptimizer
+from src.optimizer.block_coordinate_optimizer import BlockCoordinateOptimizer
 
 transformers.logging.set_verbosity_error()
+
+for i in range(10):
+    print("start!!!!")
 
 def parse_args(args):
     parser = argparse.ArgumentParser()
@@ -103,7 +106,7 @@ def evaluate_model(model, preprocess_batched, pad_idx, global_rank, world_size, 
     from requests.exceptions import ConnectionError
     for attempt in range(5):
         try:
-            val_data = datasets.load_dataset("c4", "en", split="validation", streaming=True) #DGX
+            val_data = datasets.load_dataset("/root/workspace/cthu1g4p420c73egakcg/BCD-Benchmarks/datasets/C4/en", split="validation", streaming=True) #DGX
         except ConnectionError as e:
                     if attempt < 5 - 1:
                         print(f"Connection error: {e}. Retrying...")
@@ -177,6 +180,9 @@ def main(args):
             args.gradient_accumulation = args.total_batch_size // (args.batch_size * world_size)
             assert args.gradient_accumulation > 0, "gradient_accumulation must be greater than 0"
 
+
+    print("world_size is :", world_size)
+
     assert args.gradient_accumulation * args.batch_size * world_size == args.total_batch_size, \
         "gradient_accumulation * batch_size * world_size must be equal to total_batch_size"
 
@@ -197,7 +203,7 @@ def main(args):
     from requests.exceptions import ConnectionError
     for attempt in range(5):
         try:
-            data = datasets.load_dataset("allenai/c4", "en", split="train", streaming=True)
+            data = datasets.load_dataset("/root/workspace/cthu1g4p420c73egakcg/BCD-Benchmarks/datasets/C4/en", split="train", streaming=True)
         except ConnectionError as e:
                     if attempt < 5 - 1:
                         print(f"Connection error: {e}. Retrying...")
