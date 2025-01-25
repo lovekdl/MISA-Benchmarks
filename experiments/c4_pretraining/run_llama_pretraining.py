@@ -368,7 +368,7 @@ def main(args):
     logger.info(f"Trainable params: {sum(p.numel() for p in model.parameters() if p.requires_grad) / 1_000_000:.2f}M")
     if 'ldadam' in args.optimizer.lower():
         logger.info(f"Total params with low_rank enabled: {sum(p.numel() for p in lowrank_params) / 1_000_000:.2f}M")
-    logger.info(f"Saving model to {args.save_dir} every {args.save_every} update steps")
+    # logger.info(f"Saving model to {args.save_dir} every {args.save_every} update steps")
     
 
     if args.optimizer.lower() == "adamw":
@@ -513,40 +513,40 @@ def main(args):
         update_time = time.time() - update_time
 
         # save checkpoint by save_every
-        if local_step > args.gradient_accumulation and update_step % args.save_every == 0 and global_rank == 0:
-            current_model_directory = f"{args.save_dir}/model_{update_step}"
-            logger.info(f"Saving model and optimizer to {current_model_directory}, update step {update_step}")
-            save_dir_path = os.path.abspath(args.save_dir)
-            os.makedirs(save_dir_path, exist_ok=True)
-            # model.module.save_pretrained(current_model_directory, max_shard_size='100GB')
+        # if local_step > args.gradient_accumulation and update_step % args.save_every == 0 and global_rank == 0:
+        #     current_model_directory = f"{args.save_dir}/model_{update_step}"
+        #     logger.info(f"Saving model and optimizer to {current_model_directory}, update step {update_step}")
+        #     save_dir_path = os.path.abspath(args.save_dir)
+        #     os.makedirs(save_dir_path, exist_ok=True)
+        #     # model.module.save_pretrained(current_model_directory, max_shard_size='100GB')
 
-            optimizer_checkpoint = {
-                "optimizer": optimizer.state_dict(),
-                "scheduler": scheduler.state_dict(),
-                "update_step": update_step,
-                "global_step": global_step,
-                "config": run_config,
-                "wandb": wandb.run.dir,
-                "dtype": args.dtype,
-            }
-            torch.save(optimizer_checkpoint, f"{current_model_directory}/optimizer.pt")
+        #     optimizer_checkpoint = {
+        #         "optimizer": optimizer.state_dict(),
+        #         "scheduler": scheduler.state_dict(),
+        #         "update_step": update_step,
+        #         "global_step": global_step,
+        #         "config": run_config,
+        #         "wandb": wandb.run.dir,
+        #         "dtype": args.dtype,
+        #     }
+        #     torch.save(optimizer_checkpoint, f"{current_model_directory}/optimizer.pt")
 
-            training_state_checkpoint = {
-                "global_step": global_step,
-                "update_step": update_step,
-                "tokens_seen": tokens_seen,
-                "tokens_seen_before": tokens_seen_before,
-                "update_time": update_time,
-            }
-            with open(f"{current_model_directory}/training_state.json", "w") as f:
-                json.dump(training_state_checkpoint, f, indent=4)
+        #     training_state_checkpoint = {
+        #         "global_step": global_step,
+        #         "update_step": update_step,
+        #         "tokens_seen": tokens_seen,
+        #         "tokens_seen_before": tokens_seen_before,
+        #         "update_time": update_time,
+        #     }
+        #     with open(f"{current_model_directory}/training_state.json", "w") as f:
+        #         json.dump(training_state_checkpoint, f, indent=4)
                 
-            # save wandb related info
-            wandb_info = {
-                "wandb_id": wandb.run.id,
-            }
-            with open(f"{args.save_dir}/wandb.json", "w") as f:
-                json.dump(wandb_info, f, indent=4)
+        #     # save wandb related info
+        #     wandb_info = {
+        #         "wandb_id": wandb.run.id,
+        #     }
+        #     with open(f"{args.save_dir}/wandb.json", "w") as f:
+        #         json.dump(wandb_info, f, indent=4)
 
         # evaluation
         if update_step % args.eval_every == 0:
@@ -594,32 +594,32 @@ def main(args):
     logger.info("Training finished")
     if global_rank == 0: pbar.close()
 
-    current_model_directory = f"{args.save_dir}/model_{update_step}"
-    if global_rank == 0 and not os.path.exists(current_model_directory):
-        logger.info(f"Saving model and optimizer to {current_model_directory}, update step {update_step}")
-        os.makedirs(args.save_dir, exist_ok=True)
-        # model.module.save_pretrained(current_model_directory)
+    # current_model_directory = f"{args.save_dir}/model_{update_step}"
+    # if global_rank == 0 and not os.path.exists(current_model_directory):
+    #     logger.info(f"Saving model and optimizer to {current_model_directory}, update step {update_step}")
+    #     os.makedirs(args.save_dir, exist_ok=True)
+    #     # model.module.save_pretrained(current_model_directory)
 
-        optimizer_checkpoint = {
-            "optimizer": optimizer.state_dict(),
-            "scheduler": scheduler.state_dict(),
-            "update_step": update_step,
-            "global_step": global_step,
-            "config": run_config,
-            "wandb": wandb.run.dir,
-            "dtype": args.dtype,
-        }
-        torch.save(optimizer_checkpoint, f"{current_model_directory}/optimizer.pt")
+    #     optimizer_checkpoint = {
+    #         "optimizer": optimizer.state_dict(),
+    #         "scheduler": scheduler.state_dict(),
+    #         "update_step": update_step,
+    #         "global_step": global_step,
+    #         "config": run_config,
+    #         "wandb": wandb.run.dir,
+    #         "dtype": args.dtype,
+    #     }
+    #     torch.save(optimizer_checkpoint, f"{current_model_directory}/optimizer.pt")
 
-        training_state_checkpoint = {
-            "global_step": global_step,
-            "update_step": update_step,
-            "tokens_seen": tokens_seen,
-            "tokens_seen_before": tokens_seen_before,
-            "update_time": update_time,
-        }
-        with open(f"{current_model_directory}/training_state.json", "w") as f:
-            json.dump(training_state_checkpoint, f, indent=4)
+    #     training_state_checkpoint = {
+    #         "global_step": global_step,
+    #         "update_step": update_step,
+    #         "tokens_seen": tokens_seen,
+    #         "tokens_seen_before": tokens_seen_before,
+    #         "update_time": update_time,
+    #     }
+    #     with open(f"{current_model_directory}/training_state.json", "w") as f:
+    #         json.dump(training_state_checkpoint, f, indent=4)
 
     # Final evaluation
     logger.info("Running final evaluation")
