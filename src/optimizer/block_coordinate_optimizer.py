@@ -46,7 +46,9 @@ class BlockCoordinateOptimizer(Optimizer):
         hidden_size = 4096,
         bandit_eta=0.3, 
         bantdit_lambda=None,
+        device_rank=0,
         testing_memory = 'n',
+        train_layernorm=False, 
         mix_lora=False,
         log_fn = None,
     ):
@@ -55,6 +57,8 @@ class BlockCoordinateOptimizer(Optimizer):
         self.module_names = []
         # print(base_optimizer)
         self.mix_lora=mix_lora
+        self.device_rank = device_rank
+        self.train_layernorm = train_layernorm
         if self.mix_lora:
             self.granularity = 'module'
         self.module_target = module_target
@@ -743,11 +747,11 @@ class BlockCoordinateOptimizer(Optimizer):
             # else:
             #     g_sum = sum([math.exp(self.bandit_eta * g * g) for g in self.G])
             self.G = [min(g, 3.0) for g in self.G]
-            g_sum = sum([math.exp(self.bandit_eta*g*g) for g in self.G])
+            g_sum = sum([math.exp(min(6.0, self.bandit_eta*g*g)) for g in self.G])
             # print(max(self.G))
             # print(f"index:{self.G.index(max(self.G))}")
             # print(f"g_sum is {g_sum}")
-            layer_selection_probabilities = [ ((1-self.bandit_lambda)*math.exp(self.bandit_eta*g*g)/g_sum + (self.bandit_lambda*(1.0/self.total_layers))) for g in self.G]
+            layer_selection_probabilities = [ ((1-self.bandit_lambda)*math.exp(min(6.0, self.bandit_eta*g*g))/g_sum + (self.bandit_lambda*(1.0/self.total_layers))) for g in self.G]
             self.p = layer_selection_probabilities
             print(f"layer_selection_probabilities: {layer_selection_probabilities}")
             assert len(layer_selection_probabilities) == self.total_layers
@@ -837,6 +841,8 @@ class BlockCoordinateOptimizer(Optimizer):
                 freezing_this_layer = False
             if self.include_embedding_and_lm_head and ('embed' in name or 'lm_head' in name):
                 freezing_this_layer = False
+            if self.train_layernorm and 'layernorm' in n:
+                freezing_this_layer = False
             # print(name, freezing_this_layer)
             # if "lm_head" not in name :
             #     freezing_this_layer=True
@@ -904,9 +910,9 @@ class BlockCoordinateOptimizer(Optimizer):
         import gc
         gc.collect()
         
-
-        for i in range(7) :
-            wandb.log({f"{self.module_type_names[i]} selected times":self.module_selected_times[i]})
+        if self.device_rank == 0:
+            for i in range(7) :
+                wandb.log({f"{self.module_type_names[i]} selected times":self.module_selected_times[i]})
         # load old optimizer state from cpu
         if self.offload_optimizer_state :
             if self.offload_quantization_bit > 0 :
@@ -966,6 +972,7 @@ class BlockCoordinateOptimizer(Optimizer):
                 untranable += p.numel()
         print(f"{trainable}/{trainable+untranable}  =  {trainable/(trainable+untranable)}")
 
-        wandb.log({"trainable_param_ratio":  trainable/(trainable+untranable)})
+        if self.device_rank == 0 :
+            wandb.log({"trainable_param_ratio":  trainable/(trainable+untranable)})
 
 

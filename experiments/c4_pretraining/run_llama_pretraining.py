@@ -13,7 +13,11 @@ import torch.distributed as dist
 import transformers
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 from transformers import LlamaForCausalLM as HF_LlamaForCausalLM
+from galore_torch import GaLoreAdamW
+# from src.clip_grad_norm import clip_grad_norm_for_sparse_tensor
 
+from types import MethodType
+# torch.nn.utils.clip_grad_norm_ = MethodType(clip_grad_norm_for_sparse_tensor)
 import datasets
 import datasets.distributed
 import wandb
@@ -25,7 +29,7 @@ from pept_utils import training_utils, args_utils
 from pept_utils.dataloader import PreprocessedIterableDataset
 from pept_utils.modeling_llama import LlamaForCausalLM
 
-from optimizer.block_coordinate_optimizer import BlockCoordinateOptimizer
+from src.optimizer.block_coordinate_optimizer import BlockCoordinateOptimizer
 
 transformers.logging.set_verbosity_error()
 
@@ -81,6 +85,25 @@ def parse_args(args):
     parser.add_argument("--wandb_project", type=str, default="LDAdam-pretraining")
     parser.add_argument("--wandb_job_type", type=str, default="Llama-pretraining")
     parser.add_argument("--wandb_run_name", type=str, default="LDAdam-Llama-pretraining")
+
+    # BCD arguments
+    parser.add_argument("--bcd_activated_layers", type=int, default=1)
+    parser.add_argument("--bcd_interval_steps", type=int, default=50)
+    parser.add_argument("--bcd_update_order", type=str, default='bandit_sq')
+    parser.add_argument("--granularity", type=str, default='module')
+    parser.add_argument("--bandit_eta", type=float, default=1.0)
+    parser.add_argument("--include_embedding_and_lm_head", default=False, action="store_true")
+
+    parser.add_argument("--param_ratio_limit", type=float, default=1.0)
+    
+    # galore arguments
+    parser.add_argument("--galore_rank", type=int, default=256)
+    
+    
+
+    
+    
+    
     
     # disable ddp, single_gpu
     parser.add_argument("--single_gpu", default=False, action="store_true")
@@ -90,7 +113,7 @@ def parse_args(args):
     args = args_utils.check_args_torchrun_main(args)
 
     supported_optimizers = ['adamw', 'ldadamw']
-    assert args.optimizer in supported_optimizers, "`optimizer` should be one of the following: " + ', '.join(supported_optimizers)
+    # assert args.optimizer in supported_optimizers, "`optimizer` should be one of the following: " + ', '.join(supported_optimizers)
 
     return args
 
@@ -103,7 +126,7 @@ def evaluate_model(model, preprocess_batched, pad_idx, global_rank, world_size, 
     from requests.exceptions import ConnectionError
     for attempt in range(5):
         try:
-            val_data = datasets.load_dataset("c4", "en", split="validation", streaming=True) #DGX
+            val_data = datasets.load_dataset("datasets/C4/en", split="validation", streaming=True) #DGX
         except ConnectionError as e:
                     if attempt < 5 - 1:
                         print(f"Connection error: {e}. Retrying...")
@@ -197,7 +220,7 @@ def main(args):
     from requests.exceptions import ConnectionError
     for attempt in range(5):
         try:
-            data = datasets.load_dataset("allenai/c4", "en", split="train", streaming=True)
+            data = datasets.load_dataset("datasets/C4/en", split="train", streaming=True)
         except ConnectionError as e:
                     if attempt < 5 - 1:
                         print(f"Connection error: {e}. Retrying...")
@@ -236,7 +259,13 @@ def main(args):
         model: HF_LlamaForCausalLM = AutoModelForCausalLM.from_config(model_config)
     else:
         model = LlamaForCausalLM(model_config)
-
+    # if global_rank == 0:
+    #     sum = 0
+    #     for n, p in model.named_parameters():
+    #         sum += p.numel()
+    #     for n, p in model.named_parameters():
+    #         print(n, p.shape, p.numel(), p.numel()/sum)
+    # exit(0)
     if args.activation_checkpointing:
         model.gradient_checkpointing_enable()
 
@@ -246,40 +275,40 @@ def main(args):
     tokens_seen = 0
     tokens_seen_before = 0
 
-    if args.continue_from is not None:
-        logger.info("*" * 40)
-        logger.info(f"Loading model from {args.continue_from}")
-        # checkpoint_path = os.path.join(args.continue_from, "pytorch_model.bin")
-        # model.load_state_dict(torch.load(checkpoint_path, map_location="cpu"), strict=True)
+    # if args.continue_from is not None:
+    #     logger.info("*" * 40)
+    #     logger.info(f"Loading model from {args.continue_from}")
+    #     # checkpoint_path = os.path.join(args.continue_from, "pytorch_model.bin")
+    #     # model.load_state_dict(torch.load(checkpoint_path, map_location="cpu"), strict=True)
 
-        from safetensors.torch import load_file
+    #     from safetensors.torch import load_file
 
-        checkpoint_path = os.path.join(args.continue_from, "model.safetensors")
+    #     checkpoint_path = os.path.join(args.continue_from, "model.safetensors")
 
-        # Load the model weights from the safetensors file
-        state_dict = load_file(checkpoint_path)
+    #     # Load the model weights from the safetensors file
+    #     state_dict = load_file(checkpoint_path)
 
-        # Load the state dictionary into the model
-        model.load_state_dict(state_dict, strict=True)
+    #     # Load the state dictionary into the model
+    #     model.load_state_dict(state_dict, strict=True)
 
-        logger.info(f"Model successfully loaded (strict=True policy)")
+    #     logger.info(f"Model successfully loaded (strict=True policy)")
 
-        if os.path.exists(os.path.join(args.continue_from, "training_state.json")):
-            logger.info(f"Loading training state like global_step, update_step, and tokens_seen from {args.continue_from}")
-            with open(os.path.join(args.continue_from, "training_state.json")) as f:
-                _old_state = json.load(f)
-            global_step = _old_state["global_step"]
-            update_step = _old_state["update_step"]
-            tokens_seen = _old_state["tokens_seen"]
-            tokens_seen_before = _old_state["tokens_seen_before"]
-            logger.info(f"global_step       : {global_step}")
-            logger.info(f"update_step       : {update_step}")
-            logger.info(f"tokens_seen       : {tokens_seen}")
-            logger.info(f"tokens_seen_before: {tokens_seen_before}")
-            logger.info(f"Will train for {args.num_training_steps - update_step} update steps")
-        else:
-            logger.warning(f"Did not find training state in {args.continue_from}, global step will start from zero")
-        logger.info("*" * 40)
+    #     if os.path.exists(os.path.join(args.continue_from, "training_state.json")):
+    #         logger.info(f"Loading training state like global_step, update_step, and tokens_seen from {args.continue_from}")
+    #         with open(os.path.join(args.continue_from, "training_state.json")) as f:
+    #             _old_state = json.load(f)
+    #         global_step = _old_state["global_step"]
+    #         update_step = _old_state["update_step"]
+    #         tokens_seen = _old_state["tokens_seen"]
+    #         tokens_seen_before = _old_state["tokens_seen_before"]
+    #         logger.info(f"global_step       : {global_step}")
+    #         logger.info(f"update_step       : {update_step}")
+    #         logger.info(f"tokens_seen       : {tokens_seen}")
+    #         logger.info(f"tokens_seen_before: {tokens_seen_before}")
+    #         logger.info(f"Will train for {args.num_training_steps - update_step} update steps")
+    #     else:
+    #         logger.warning(f"Did not find training state in {args.continue_from}, global step will start from zero")
+    #     logger.info("*" * 40)
 
 
     if args.dtype in ["bf16", "bfloat16"]:
@@ -343,15 +372,42 @@ def main(args):
         optimizer = BlockCoordinateOptimizer(
                 base_optimizer=base_optimizer,
                 named_parameters_list=list(model.named_parameters()),
-                bcd_activated_layers=args.block_layers,
-                bcd_interval_steps=args.block_interval_steps,
-                bcd_order=args.block_update_order,
-                include_embedding_and_lm_head=args.train_embed_and_lm_head_all_the_time,
-                block_target_attn=args.block_target_attn,
-                block_target_mlp=args.block_target_mlp,
-                block_target_non_linear=args.block_target_non_linear,
-                only_layer=args.only_layer
+                bcd_activated_layers=args.bcd_activated_layers,
+                bcd_interval_steps=args.bcd_interval_steps,
+                bcd_order=args.bcd_update_order,
+                block_target_attn=True,
+                block_target_mlp=True,
+                block_target_non_linear=True,
+                device='cuda',
+                granularity=args.granularity,
+                LRU=0,
+                param_ratio_limit=args.param_ratio_limit,
+                hidden_size=1024,
+                include_embedding_and_lm_head=args.include_embedding_and_lm_head,
+                bandit_eta=args.bandit_eta,
+                train_layernorm=True,
+                device_rank=-1
             )
+    elif args.optimizer.lower() == "galore":
+
+        galore_params = []
+        target_modules_list = ["attn", "mlp"]
+        for module_name, module in model.named_modules():
+            if not isinstance(module, nn.Linear):
+                continue
+
+            if not any(target_key in module_name for target_key in target_modules_list):
+                continue
+            
+            print('enable GaLore for weights in module: ', module_name)
+            galore_params.append(module.weight)
+        id_galore_params = [id(p) for p in galore_params]
+        # make parameters without "rank" to another group
+        regular_params = [p for p in model.parameters() if id(p) not in id_galore_params]
+        # then call galore_adamw
+        param_groups = [{'params': regular_params}, 
+                        {'params': galore_params, 'rank': args.galore_rank, 'update_proj_gap': 50, 'scale': 1.0, 'proj_type': 'std'}]
+        optimizer = GaLoreAdamW(param_groups, lr=args.lr, weight_decay=args.weight_decay)
     else:
         raise ValueError(f"Optimizer {args.optimizer} not supported")
 
@@ -382,7 +438,15 @@ def main(args):
 
     # global steps and others are defined above
     pad_idx = tokenizer.pad_token_id
-    model.module.generation_config.pad_token_id = tokenizer.pad_token_id #replace unvalid -1 from config file
+    if not args.single_gpu:
+        model.module.generation_config.pad_token_id = tokenizer.pad_token_id  #replace unvalid -1 from config file
+    else :
+        model.generation_config.pad_token_id = tokenizer.pad_token_id
+        # print(model.generation_config)
+        # print(model.config)
+        # # print(model.modules)
+        # # print(model.modules.generation_config)
+        # exit(0)
     update_time = time.time()
     local_step = 0  # when continue_from is used, local_step != global_step
 
@@ -418,7 +482,12 @@ def main(args):
         # The below code is only executed during the update step
 
         # add grad clipping
-        if args.grad_clipping != 0.0: torch.nn.utils.clip_grad_norm_(trainable_params, args.grad_clipping)
+        if args.grad_clipping != 0.0: 
+
+            # from src.clip_grad_norm import clip_grad_norm_for_sparse_tensor
+            # clip_grad_norm_for_sparse_tensor(parameters=trainable_params, max_norm=args.grad_clipping)
+
+            torch.nn.utils.clip_grad_norm_(trainable_params, args.grad_clipping)
 
         if global_rank == 0: pbar.update(1)
         
@@ -443,7 +512,7 @@ def main(args):
             logger.info(f"Saving model and optimizer to {current_model_directory}, update step {update_step}")
             save_dir_path = os.path.abspath(args.save_dir)
             os.makedirs(save_dir_path, exist_ok=True)
-            model.module.save_pretrained(current_model_directory, max_shard_size='100GB')
+            # model.module.save_pretrained(current_model_directory, max_shard_size='100GB')
 
             optimizer_checkpoint = {
                 "optimizer": optimizer.state_dict(),
@@ -484,7 +553,7 @@ def main(args):
                     "final_eval_loss": total_loss,
                     "final_eval_tokens": evaluated_on_tokens,
                     },
-                    step=global_step,
+                    step=update_step,
                 )
             logger.info(f"Eval loss at step {update_step}: {total_loss}")
 
@@ -509,7 +578,7 @@ def main(args):
                 "peak_memory_GB": peak_memory,
                 # "grad_norm": grad_norm,
                 },
-                step=global_step,
+                step=update_step,
             )
         update_time = time.time()
 
@@ -523,7 +592,7 @@ def main(args):
     if global_rank == 0 and not os.path.exists(current_model_directory):
         logger.info(f"Saving model and optimizer to {current_model_directory}, update step {update_step}")
         os.makedirs(args.save_dir, exist_ok=True)
-        model.module.save_pretrained(current_model_directory)
+        # model.module.save_pretrained(current_model_directory)
 
         optimizer_checkpoint = {
             "optimizer": optimizer.state_dict(),
@@ -562,7 +631,7 @@ def main(args):
             "final_eval_loss": total_loss,
             "final_eval_tokens": evaluated_on_tokens,
             },
-            step=global_step,
+            step=update_step,
         )
         logger.info(f"Final eval loss: {total_loss}")
 
