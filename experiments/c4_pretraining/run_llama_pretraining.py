@@ -33,6 +33,9 @@ from src.optimizer.block_coordinate_optimizer import BlockCoordinateOptimizer
 
 transformers.logging.set_verbosity_error()
 
+for i in range(10):
+    print("start!!!!")
+
 def parse_args(args):
     parser = argparse.ArgumentParser()
 
@@ -199,6 +202,9 @@ def main(args):
             assert args.total_batch_size % world_size == 0, "total_batch_size must be divisible by world_size"
             args.gradient_accumulation = args.total_batch_size // (args.batch_size * world_size)
             assert args.gradient_accumulation > 0, "gradient_accumulation must be greater than 0"
+
+
+    print("world_size is :", world_size)
 
     assert args.gradient_accumulation * args.batch_size * world_size == args.total_batch_size, \
         "gradient_accumulation * batch_size * world_size must be equal to total_batch_size"

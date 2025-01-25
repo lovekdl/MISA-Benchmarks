@@ -8,3 +8,4 @@ wandb
 sentencepiece
 scikit-learn
 galore_torch
+loguru

@@ -12,7 +12,6 @@ python -m torch.distributed.run --standalone --nproc_per_node=8 experiments/c4_p
     --save_every 10000 \
     --total_batch_size 256 \
     --batch_size 32 \
-    --gradient_accumulation 1 \
     --save_dir experiments/c4_pretraining/results/Adam/$MODEL/lr_$LEARNING_RATE \
     --seed $SEED \
     --optimizer adamw \
