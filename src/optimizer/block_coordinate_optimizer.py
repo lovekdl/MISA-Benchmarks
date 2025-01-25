@@ -511,12 +511,12 @@ class BlockCoordinateOptimizer(Optimizer):
                 del population[index]
                 del weights[index]
 
-        if self.bcd_order=="bandit_exp_topK":
+        if self.bcd_order=="bandit_sq_topK":
             indices = sorted(range(len(weights)), key=lambda i: weights[i], reverse=True)
-            print(f"indices: {indices}")
+            # print(f"indices: {indices}")
             while len(indices):
                 chosen = indices[0]
-                print(f"chosen:{chosen}")
+                # print(f"chosen:{chosen}")
                 if choosed_ratio + self.layers_param_number[chosen] / self.total_params_num <= self.param_ratio_limit:
                     choosed_ratio += self.layers_param_number[chosen] / self.total_params_num
                     selected.append(chosen)
@@ -527,6 +527,21 @@ class BlockCoordinateOptimizer(Optimizer):
             print(f"choosed params ratio:{choosed_ratio}")
             return selected
 
+        if self.bcd_order=="bandit_sq_bottomK":
+            indices = sorted(range(len(weights)), key=lambda i: weights[i], reverse=False)
+            # print(f"indices: {indices}")
+            while len(indices):
+                chosen = indices[0]
+                # print(f"chosen:{chosen}")
+                if choosed_ratio + self.layers_param_number[chosen] / self.total_params_num <= self.param_ratio_limit:
+                    choosed_ratio += self.layers_param_number[chosen] / self.total_params_num
+                    selected.append(chosen)
+                    
+                del indices[0]
+                del weights[0]
+            
+            print(f"choosed params ratio:{choosed_ratio}")
+            return selected
 
         while len(population) and k > 0 :
             chosen = random.choices(population, weights=weights, k=1)[0]
@@ -696,7 +711,7 @@ class BlockCoordinateOptimizer(Optimizer):
             # print(f"before divide: {self.avg_grad_norms_hat}\n")
             # print(f"avg_grad_norms_hat: {self.avg_grad_norms_hat}")
             self.active_layers_indices = self.weighted_sample_without_replacement(population=range(len(layer_selection_probabilities)), weights=layer_selection_probabilities, k=self.bcd_activated_layers)
-        elif self.bcd_order == "bandit_exp" or self.bcd_order == "bandit_exp_divide_p" or self.bcd_order=="bandit_exp_topK" :
+        elif "bandit_exp" in self.bcd_order :
             for i in range(self.total_layers) :
                 if self.G_appo[i] == 0 :
                     continue
@@ -724,7 +739,7 @@ class BlockCoordinateOptimizer(Optimizer):
             # print(f"before divide: {self.avg_grad_norms_hat}\n")
             # print(f"avg_grad_norms_hat: {self.avg_grad_norms_hat}")
             self.active_layers_indices = self.weighted_sample_without_replacement(population=range(len(layer_selection_probabilities)), weights=layer_selection_probabilities, k=self.bcd_activated_layers)
-        elif  self.bcd_order == 'bandit_sq':
+        elif  'bandit_sq' in self.bcd_order :
             for i in range(self.total_layers) :
                 if self.G_appo[i] == 0 :
                     continue
