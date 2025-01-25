@@ -1,4 +1,4 @@
-name: llama-3-8b_lora_adamw_math_target[all]
+name: llama-3-8b_lora_LR[1e-4]_adamw_math_target[all]
 project: bcd_bench_math
 command:
   - ${interpreter}
@@ -21,7 +21,7 @@ command:
   - --max_seq_length=512
   - --eval_strategy=epoch
   - --save_strategy=no
-  - --num_train_epochs=6
+  - --num_train_epochs=3
   - --output_dir=experiments/glue_finetuning/results/Adam/math/
   - --do_eval=True
   - --do_train=True 
@@ -35,7 +35,7 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 1e-5
+      - 1e-4
   weight_decay:
     values:
       - 0

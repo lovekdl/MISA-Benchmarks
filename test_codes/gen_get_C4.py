@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 基础配置信息
 BASE_URL = "https://hf-mirror.com/datasets/allenai/c4/resolve/main/en"
-DOWNLOAD_DIR = "/root/workspace/cthu1g4p420c73egakcg/BCD-Benchmarks/datasets/C4/en"
+DOWNLOAD_DIR = "/root/workspace/cu2c5ncp420c73brfmug/BCD-Benchmarks/datasets/C4/en"
 
 VALIDATION_COUNT = 8
 TRAIN_COUNT = 1024
