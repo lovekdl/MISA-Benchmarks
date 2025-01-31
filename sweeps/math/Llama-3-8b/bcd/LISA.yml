@@ -1,33 +1,30 @@
-name: QBase-7b_LISA_[3epoch]_clipnorm[10]_math_target[all]
+name: llama-3-8b_LISA_clip[10.0]_adamw_math_target[all]
 project: bcd_bench_math
 command:
   - ${interpreter}
   - ${program}
   - ${args}
-  - --model_name_or_path=Qwen/Qwen2.5-7B
+  - --model_name_or_path=meta-llama/Meta-Llama-3-8B
   - --task_name=math
   - --bcd_target_attn=True
-  - --include_embedding_and_lm_head=True
   - --bcd_target_mlp=True
+  - --optimizer=bcd-optimizer
   - --bcd_update_order=random
+  - --include_embedding_and_lm_head=True
+  - --bcd_interval_steps=50
   - --dataset_path=datasets/Math10k
   - --task_name=math
-  - --optimizer=bcd-optimizer
-  - --grad_importance_exp=0
-  - --LRU=2
-  - --granularity=layer
-  - --max_grad_norm=10
-  - --offload_optimizer_state=False
-  - --bcd_interval_steps=50
   - --seed=42
   - --report_to=wandb
   - --per_device_train_batch_size=4
   - --per_device_eval_batch_size=1 
   - --gradient_accumulation_steps=1
+  - --granularity=layer
   - --max_seq_length=512
-  - --eval_strategy=epoch
+  - --max_grad_norm=10.0
   - --save_strategy=no
-  - --num_train_epochs=3
+  - --num_train_epochs=6
+  - --eval_strategy=epoch
   - --output_dir=experiments/glue_finetuning/results/Adam/math/
   - --do_eval=True
   - --do_train=True 
@@ -42,10 +39,10 @@ method: grid
 parameters:
   learning_rate:
     values:
-      - 1e-5
-  param_ratio_limit:
+      - 5e-6
+  bcd_activated_layers:
     values:
-      - 0.03
+      - 1
   weight_decay:
     values:
       - 0

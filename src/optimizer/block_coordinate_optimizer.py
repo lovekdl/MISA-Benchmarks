@@ -405,7 +405,8 @@ class BlockCoordinateOptimizer(Optimizer):
                 self.skip_nan = True
             if self.bcd_order == "bandit_exp_divide_p" :
                 hp.grad /= self.p[id]
-                print(f"{name} divide {self.p[id]} grad:{torch.norm(hp.grad)}")
+                if not self.testing_memory:
+                    print(f"{name} divide {self.p[id]} grad:{torch.norm(hp.grad)}")
             eps = 1e-8
             # print(self.total_layers)
             del t_grad
@@ -459,9 +460,11 @@ class BlockCoordinateOptimizer(Optimizer):
             # wandb.log({f"layer{i} grad norm": current_grad_norm})
 
             if self.granularity == 'layer':
-                print(f"layer{i} grad norm: {current_grad_norm}, weightnorm:{round(current_weight_norm, 2)}")
+                if not self.testing_memory:
+                    print(f"layer{i} grad norm: {current_grad_norm}, weightnorm:{round(current_weight_norm, 2)}")
             else :
-                print(f"{self.module_names[i]} grad norm:{round(current_grad_norm, 2)}, weightnorm:{round(current_weight_norm, 2)}, {dt}, {dt2}")
+                if not self.testing_memory:
+                    print(f"{self.module_names[i]} grad norm:{round(current_grad_norm, 2)}, weightnorm:{round(current_weight_norm, 2)}, {dt}, {dt2}")
 
             # print("value1 : ", math.log(1.0+current_grad_norm) ** 2)
             # print("value2 : ", (self.total_layers * self.p[i] * self.p[i]))

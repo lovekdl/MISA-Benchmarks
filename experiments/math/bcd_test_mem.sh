@@ -10,7 +10,7 @@ python -u experiments/math/memory_test.py \
     --per_device_train_batch_size 1 \
     --per_device_eval_batch_size 1 \
     --optimizer bcd-optimizer \
-    --param_ratio_limit 0.03 \
+    --param_ratio_limit 0.01 \
     --bcd_activated_layers 7 \
     --granularity module \
     --seed 42 \

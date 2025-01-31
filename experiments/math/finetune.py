@@ -832,7 +832,7 @@ def main() :
         ),
         )
     from utils.callbacks import MemoryTimeConsumptionCallback, MathReasoningEvaluateCallback
-    trainer.add_callback(MemoryTimeConsumptionCallback(trainer))
+    trainer.add_callback(MemoryTimeConsumptionCallback(trainer, mem_record=training_args.testing_memory))
     # if do_eval :  
     trainer.add_callback(MathReasoningEvaluateCallback(
         trainer=trainer,
