@@ -371,7 +371,7 @@ def main(args):
     if 'ldadam' in args.optimizer.lower():
         logger.info(f"Total params with low_rank enabled: {sum(p.numel() for p in lowrank_params) / 1_000_000:.2f}M")
     # logger.info(f"Saving model to {args.save_dir} every {args.save_every} update steps")
-    
+    layerwise_flag = False
 
     if args.optimizer.lower() == "adamw":
         optimizer = torch.optim.AdamW(trainable_params, lr=args.lr, betas=(args.beta1,args.beta2), eps=args.eps, weight_decay=args.weight_decay)
@@ -417,16 +417,61 @@ def main(args):
         param_groups = [{'params': regular_params}, 
                         {'params': galore_params, 'rank': args.galore_rank, 'update_proj_gap': 50, 'scale': 1.0, 'proj_type': 'std'}]
         optimizer = GaLoreAdamW(param_groups, lr=args.lr, weight_decay=args.weight_decay)
+    elif args.optimizer.lower() == "galore-layerwise":
+        layerwise_flag=True
+        galore_params = []
+        target_modules_list = ["attn", "mlp"]
+        for module_name, module in model.named_modules():
+            if not isinstance(module, nn.Linear):
+                continue
+
+            if not any(target_key in module_name for target_key in target_modules_list):
+                continue
+            
+            print('enable GaLore for weights in module: ', module_name)
+            galore_params.append(module.weight)        
+        id_galore_params = [id(p) for p in galore_params]
+        # make parameters without "rank" to another group
+        regular_params = [p for p in model.parameters() if id(p) not in id_galore_params]
+        optimizer_dict = {}
+        for p in model.parameters():
+            if p.requires_grad:
+                if id(p) in id_galore_params:
+                    optimizer_dict[p] = GaLoreAdamW([{'params': [p], 'rank': args.galore_rank, 'update_proj_gap': 50, 'scale': 1.0, 'proj_type': 'std'}], lr=args.lr, weight_decay=args.weight_decay)
+                else:
+                    from torch.optim import AdamW
+                    optimizer_dict[p] = AdamW([p], lr=args.lr, weight_decay=args.weight_decay)
+        scheduler_dict = {}
+        for p in model.parameters():
+            if p.requires_grad:
+                scheduler_dict[p] = training_utils.get_scheculer(
+                    optimizer=optimizer_dict[p],
+                    scheduler_type=args.scheduler,
+                    num_training_steps=args.num_training_steps * 2,
+                    warmup_steps=args.warmup_steps * 2,
+                    min_lr_ratio=args.min_lr_ratio,
+                )
+        def optimizer_hook(p):
+            if p.grad is None: 
+                return
+            optimizer_dict[p].step()
+            optimizer_dict[p].zero_grad()
+            scheduler_dict[p].step()
+
+        # Register the hook onto every parameter
+        for p in model.parameters():
+            if p.requires_grad:
+                p.register_post_accumulate_grad_hook(optimizer_hook)
     else:
         raise ValueError(f"Optimizer {args.optimizer} not supported")
-
-    scheduler = training_utils.get_scheculer(
-        optimizer=optimizer,
-        scheduler_type=args.scheduler,
-        num_training_steps=args.num_training_steps,
-        warmup_steps=args.warmup_steps,
-        min_lr_ratio=args.min_lr_ratio,
-    )
+    if not layerwise_flag:
+        scheduler = training_utils.get_scheculer(
+            optimizer=optimizer,
+            scheduler_type=args.scheduler,
+            num_training_steps=args.num_training_steps,
+            warmup_steps=args.warmup_steps,
+            min_lr_ratio=args.min_lr_ratio,
+        )
 
     if args.continue_from is not None:
         checkpoint_path = os.path.join(args.continue_from, 'optimizer.pt')
@@ -500,17 +545,18 @@ def main(args):
 
         if global_rank == 0: pbar.update(1)
         
-        optimizer.step()
-        scheduler.step()
+        if not layerwise_flag:
+            optimizer.step()
+            scheduler.step()
 
-        # if global_rank == 0:
-        #     grad_norm = 0.0
-        #     for param in model.parameters():
-        #         if param.grad is not None:
-        #             grad_norm += param.grad.norm().item() ** 2
-        #     grad_norm = torch.sqrt(torch.tensor(grad_norm)).item()
+            # if global_rank == 0:
+            #     grad_norm = 0.0
+            #     for param in model.parameters():
+            #         if param.grad is not None:
+            #             grad_norm += param.grad.norm().item() ** 2
+            #     grad_norm = torch.sqrt(torch.tensor(grad_norm)).item()
 
-        optimizer.zero_grad()
+            optimizer.zero_grad()
 
         update_step += 1
         update_time = time.time() - update_time
@@ -566,8 +612,10 @@ def main(args):
                 )
             logger.info(f"Eval loss at step {update_step}: {total_loss}")
 
-        lr = optimizer.param_groups[0]["lr"]
-
+        if not layerwise_flag:
+            lr = optimizer.param_groups[0]["lr"]
+        else:
+            lr = list(optimizer_dict.values())[0].param_groups[0]["lr"]
         tokens_in_update = tokens_seen - tokens_seen_before
         tokens_seen_before = tokens_seen
         batches_in_update = args.gradient_accumulation * world_size
