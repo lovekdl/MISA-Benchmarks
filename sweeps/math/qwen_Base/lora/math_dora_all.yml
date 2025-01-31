@@ -7,9 +7,9 @@ command:
   - --model_name_or_path=Qwen/Qwen2.5-7B
   - --task_name=math
   - --lora=True
-  - --lora_r=8
-  - --lora_alpha=16
-  - --lora_target=q_proj,v_proj,up_proj,down_proj
+  - --lora_r=16
+  - --lora_alpha=32
+  - --lora_target=q_proj,k_proj,v_proj,up_proj,down_proj
   - --use_dora=True
   - --optimizer=adamw
   - --dataset_path=datasets/Math10k

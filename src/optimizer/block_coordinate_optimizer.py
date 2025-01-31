@@ -38,7 +38,7 @@ class BlockCoordinateOptimizer(Optimizer):
         bcd_suffix_start_index = 0,
         device = 'cuda',
         offload_rank = -1,
-        offload_quantization_bit = 8, 
+        offload_quantization_bit = -1, 
         granularity='module', 
         param_ratio_limit = 0.03, 
         LRU = 0, 
@@ -66,8 +66,10 @@ class BlockCoordinateOptimizer(Optimizer):
         self.block_target_attn=block_target_attn
         self.block_target_mlp=block_target_mlp
         self.param_to_id={}
+        self.device_dict = {}
         block_prefix_list, other_params = self.infer_param_groups(named_parameters_list)
         for name, param in named_parameters_list:
+            self.device_dict[param] = param.device
             for i in range(len(block_prefix_list)):
                 if block_prefix_list[i][0] in name:
                     assert param not in self.param_to_id
@@ -91,6 +93,7 @@ class BlockCoordinateOptimizer(Optimizer):
         self.include_embedding_and_lm_head = include_embedding_and_lm_head
         self.only_layer = only_layer
         self.bcd_order = bcd_order
+        
 
         self.skip_nan = False
 
@@ -604,7 +607,7 @@ class BlockCoordinateOptimizer(Optimizer):
                         if key == 'step'  :
                             self.base_optimizer.state[p][key] = self.base_optimizer.state[hp][key]
                         else :
-                            self.base_optimizer.state[p][key] = value.to(dtype=torch.float16).to('cpu')
+                            self.base_optimizer.state[p][key] = value.to('cpu')
                     del self.base_optimizer.state[hp]
                     del hp
                     del self.lp_to_hp[p]
@@ -884,7 +887,7 @@ class BlockCoordinateOptimizer(Optimizer):
                             param_hp = param.clone().float().detach().to(param.device)
                             param_hp.requires_grad = True
 
-                    elif self.param_to_id[param] not in self.retain_indices: 
+                    elif self.offload_optimizer_state or (self.param_to_id[param] not in self.retain_indices): 
                         param_hp = param.clone().float().detach().to(param.device)
                         param_hp.requires_grad = True
                     else:
@@ -899,7 +902,7 @@ class BlockCoordinateOptimizer(Optimizer):
 
                 else:
                     param_hp = param
-                    self.lp_to_hp[param] = param
+                    self.lp_to_hp[param] = param_hp
                 # self.hp_to_id[param_hp] = i
                 # print(f"THE LENGTH IS {i} :")
                 # print(len(self.param_idx2lp))
@@ -956,7 +959,7 @@ class BlockCoordinateOptimizer(Optimizer):
                     self.base_optimizer.state[hp] = {}
                     for key, value in self.base_optimizer.state[p].items() :
                         # print(n, key, value)
-                        self.base_optimizer.state[hp][key] = self.base_optimizer.state[p][key].to(self.device)
+                        self.base_optimizer.state[hp][key] = self.base_optimizer.state[p][key].to(self.device_dict[p])
                     del self.base_optimizer.state[p]
 
         

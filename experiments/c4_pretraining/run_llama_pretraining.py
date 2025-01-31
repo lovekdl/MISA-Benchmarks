@@ -96,6 +96,8 @@ def parse_args(args):
     parser.add_argument("--granularity", type=str, default='module')
     parser.add_argument("--bandit_eta", type=float, default=1.0)
     parser.add_argument("--include_embedding_and_lm_head", default=False, action="store_true")
+    parser.add_argument("--offload_optimizer_state", default=False, action="store_true")
+    
 
     parser.add_argument("--param_ratio_limit", type=float, default=1.0)
     
@@ -389,6 +391,7 @@ def main(args):
                 LRU=0,
                 param_ratio_limit=args.param_ratio_limit,
                 hidden_size=1024,
+                offload_optimizer_state=args.offload_optimizer_state, 
                 include_embedding_and_lm_head=args.include_embedding_and_lm_head,
                 bandit_eta=args.bandit_eta,
                 train_layernorm=True,

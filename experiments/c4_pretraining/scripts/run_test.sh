@@ -2,8 +2,9 @@ export SEED=1234
 export MODEL=llama_350m
 export LEARNING_RATE=1e-3
 
-python -m torch.distributed.run --standalone --nproc_per_node=8 experiments/c4_pretraining/run_llama_pretraining.py \
+python -m torch.distributed.run --standalone --nproc_per_node=1 experiments/c4_pretraining/run_llama_pretraining.py \
     --model_config experiments/c4_pretraining/configs/$MODEL.json \
+    --single_gpu \
     --max_length 256 \
     --dtype bfloat16 \
     --num_training_steps 55000 \
@@ -12,7 +13,6 @@ python -m torch.distributed.run --standalone --nproc_per_node=8 experiments/c4_p
     --save_every 10000 \
     --total_batch_size 256 \
     --batch_size 32 \
-    --gradient_accumulation 1 \
     --save_dir experiments/c4_pretraining/results/Adam/$MODEL/lr_$LEARNING_RATE \
     --seed $SEED \
     --optimizer adamw \

@@ -12,6 +12,7 @@ python -m torch.distributed.run --standalone --nproc_per_node=4 experiments/c4_p
     --save_every 10000 \
     --total_batch_size 256 \
     --batch_size 32 \
+    --galore_rank $GALORE_RANK\
     --save_dir experiments/c4_pretraining/GALORE/RANK${GALORE_RANK} \
     --seed $SEED \
     --optimizer galore \
