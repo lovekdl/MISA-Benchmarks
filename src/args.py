@@ -119,6 +119,10 @@ class CustomizedTrainingArguments(TrainingArguments) :
             "help":""
         }
     )
+    save_model_at_last:bool=field(
+        default=True,
+        metadata={"help":""}
+    )
 
     # Galore
     galore:bool = field(

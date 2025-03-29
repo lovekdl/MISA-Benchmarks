@@ -1,0 +1,47 @@
+name: llama-3-8b_dora_adamw_alpaca_r[8]_target[q,v,up,down]
+project: bcd_bench_alpaca
+command:
+  - ${interpreter}
+  - ${program}
+  - ${args}
+  - --dataset_path=vicgalle/alpaca-gpt4
+  - --model_name_or_path=meta-llama/Meta-Llama-3-8B
+  - --task_name=alpaca
+  - --lora=True
+  - --lora_r=8
+  - --lora_alpha=16
+  - --lora_target=q_proj,v_proj,up_proj,down_proj
+  - --use_dora=True
+  - --optimizer=adamw
+  - --seed=42
+  - --report_to=wandb
+  - --per_device_train_batch_size=4
+  - --per_device_eval_batch_size=1 
+  - --gradient_accumulation_steps=4
+  - --eval_strategy=steps
+  - --eval_steps=100
+  - --eval_on_start=True
+  - --max_seq_length=512
+  - --eval_strategy=steps
+  - --save_strategy=no
+  - --num_train_epochs=3
+  - --output_dir=experiments/glue_finetuning/results/Adam/alpaca/
+  - --fp16=True
+  - --do_eval=True
+  - --do_train=True 
+  - --do_predict=False
+  - --logging_steps=1
+  - --save_total_limit=0
+  - --report_to=wandb
+  - --pad_to_max_length=False
+  - --overwrite_output_dir=True
+method: grid
+parameters:
+  learning_rate:
+    values:
+      - 1e-4
+  weight_decay:
+    values:
+      - 0
+
+program: experiments/alpaca/finetune.py

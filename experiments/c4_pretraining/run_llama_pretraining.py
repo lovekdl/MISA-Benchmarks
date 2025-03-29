@@ -125,7 +125,7 @@ def parse_args(args):
 
 
 @torch.no_grad()
-def evaluate_model(model, preprocess_batched, pad_idx, global_rank, world_size, device, batch_size):
+def evaluate_model(model, data_config:Data, preprocess_batched, pad_idx, global_rank, world_size, device, batch_size):
     _time = time.time()
     
     from requests.exceptions import ConnectionError
@@ -155,7 +155,7 @@ def evaluate_model(model, preprocess_batched, pad_idx, global_rank, world_size, 
     target_eval_tokens = 10_000_000
     evaluated_on_tokens = 0
     total_loss = torch.tensor(0.0).to(device)
-    total_batches = 1
+    total_batches = 0
     logger.info(f"Eval set prepared in {time.time() - _time:.2f} seconds")
 
     for batch in val_data_mapped.batch(batch_size=batch_size):
@@ -424,7 +424,7 @@ def main(args):
         for module_name, module in model.named_modules():
             if not isinstance(module, nn.Linear):
                 continue
-
+            
             if not any(target_key in module_name for target_key in target_modules_list):
                 continue
             

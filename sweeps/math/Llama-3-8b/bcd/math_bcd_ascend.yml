@@ -9,23 +9,25 @@ command:
   - --bcd_target_attn=True
   - --bcd_target_mlp=True
   - --optimizer=bcd-optimizer
-  - --bcd_update_order=ascending
+  - --bcd_update_order=random
   - --bcd_interval_steps=50
   - --dataset_path=datasets/Math10k
   - --task_name=math
+  - --granularity=module
+  - --param_ratio_limit=1.1
   - --seed=42
+  - --load_type=fp32
   - --report_to=wandb
   - --per_device_train_batch_size=4
   - --per_device_eval_batch_size=1 
   - --gradient_accumulation_steps=1
-  - --granularity=layer
   - --max_seq_length=512
   - --max_grad_norm=10.0
   - --save_strategy=no
   - --num_train_epochs=6
   - --eval_strategy=epoch
   - --output_dir=experiments/glue_finetuning/results/Adam/math/
-  - --do_eval=True
+  - --do_eval=False
   - --do_train=True 
   - --do_predict=False
   - --logging_steps=1
@@ -41,7 +43,7 @@ parameters:
       - 5e-6
   bcd_activated_layers:
     values:
-      - 1
+      - 32
   weight_decay:
     values:
       - 0

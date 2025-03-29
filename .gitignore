@@ -17,3 +17,6 @@ roberta-superglue/
 FastChat/
 
 DoRA/
+
+eval/
+eval_results/

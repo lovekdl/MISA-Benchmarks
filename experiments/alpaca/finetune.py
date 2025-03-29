@@ -641,7 +641,6 @@ def generate_tag(model_args, data_args, training_args) :
     else :
         run_name +=f"TASK[{data_args.task_name}]-{model_args.model_name_or_path}-EPOCH{args.num_train_epochs}-OPTIM[{args.optimizer}]-LR{args.learning_rate}"
     
-    
     if training_args.load_type != 'fp16':
         run_name += f"-{training_args.load_type}"
     return run_name
@@ -875,8 +874,12 @@ def main() :
     #     training_args.do_eval = 'no'
     #     training_args.eval_strategy = 'no'
     #     training_args.per_device_eval_batch_size = 1
-    
-    print(train_data)
+    if training_args.do_eval == False:
+        valid_data = None
+    # for i in range(10):
+    #     print(training_args.do_eval, valid_data)
+    # exit(0)
+    # print(train_data)
     trainer = OurTrainer(
         model=model,
         args=training_args,
@@ -891,7 +894,8 @@ def main() :
     trainer.add_callback(MemoryTimeConsumptionCallback(trainer))
 
     train_result = trainer.train()
-    trainer.save_model()
+    if training_args.save_model_at_last:
+        trainer.save_model()
     metrics = train_result.metrics
     max_train_samples = (
         data_args.max_train_samples if data_args.max_train_samples is not None else len(train_data)

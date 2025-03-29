@@ -1,0 +1,50 @@
+name: LISA_test_time
+project: bcd_test_time
+command:
+  - ${interpreter}
+  - ${program}
+  - ${args}
+  - --dataset_path=vicgalle/alpaca-gpt4
+  - --model_name_or_path=meta-llama/Llama-2-7b-hf
+  - --task_name=alpaca
+  - --bcd_target_attn=True
+  - --bcd_target_mlp=True
+  - --optimizer=bcd-optimizer
+  - --bcd_update_order=random
+  - --include_embedding_and_lm_head=True
+  - --bcd_activated_layers=1
+  - --bcd_interval_steps=50
+  - --grad_importance_exp=0
+  - --save_model_at_last=False
+  - --max_grad_norm=10
+  - --task_name=modulealpaca
+  - --seed=42
+  - --load_type=bf16
+  - --report_to=wandb
+  - --per_device_train_batch_size=1
+  - --per_device_eval_batch_size=1
+  - --gradient_accumulation_steps=1
+  - --max_seq_length=512
+  - --eval_strategy=no
+  - --save_strategy=no
+  - --num_train_epochs=3
+  - --output_dir=saves/
+  - --do_eval=False
+  - --do_train=True 
+  - --do_predict=False
+  - --logging_steps=1
+  - --save_total_limit=0
+  - --report_to=wandb
+  - --pad_to_max_length=False
+  - --overwrite_output_dir=True
+  - --lr_scheduler_type=linear
+method: grid
+parameters:
+  learning_rate:
+    values:
+      - 1e-5
+  weight_decay:
+    values:
+      - 0
+
+program: experiments/alpaca/finetune.py
