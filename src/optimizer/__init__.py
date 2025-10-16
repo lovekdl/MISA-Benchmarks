@@ -1,4 +1,4 @@
-from .block_coordinate_optimizer import BlockCoordinateOptimizer
+from .block_coordinate_optimizer import BlockCoordinateDesentOptimizer
 __all__ = [
-    "BlockCoordinateOptimizer"
+    "BlockCoordinateDesentOptimizer"
     ]

@@ -806,15 +806,15 @@ def main() :
     from utils.callbacks import MemoryTimeConsumptionCallback
     trainer.add_callback(MemoryTimeConsumptionCallback(trainer))
     if do_eval :  
-            trainer.add_callback(CommonsenseReasoningEvaluateCallback(
-                trainer=trainer,
-                model=model,
-                tokenizer=tokenizer,
-                test_dataset=test_data,
-                dataset_name=data_args.task_name,
-                eval_strategy=eval_strategy,
-                args=training_args,
-                ))
+        trainer.add_callback(CommonsenseReasoningEvaluateCallback(
+            trainer=trainer,
+            model=model,
+            tokenizer=tokenizer,
+            test_dataset=test_data,
+            dataset_name=data_args.task_name,
+            eval_strategy=eval_strategy,
+            args=training_args,
+            ))
 
 
     train_result = trainer.train()

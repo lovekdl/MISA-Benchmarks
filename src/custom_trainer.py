@@ -1,6 +1,6 @@
 import torch
-# from transformers.optimization import AdamW as tad
-from torch.optim import SGD, Adam, AdamW
+from torch.optim import SGD
+from transformers.optimization import AdamW
 from torch import nn
 from transformers import Trainer
 from transformers.trainer_callback import (
@@ -12,7 +12,7 @@ from galore_torch import GaLoreAdamW
 from transformers.utils import (
     logging,
 )
-from src.optimizer import BlockCoordinateOptimizer
+from src.optimizer import BlockCoordinateDesentOptimizer
 from src.clip_grad_norm import clip_grad_norm_for_sparse_tensor
 from types import MethodType
 
@@ -31,7 +31,8 @@ class OurTrainer(Trainer):
     def create_optimizer(self) -> "torch.optim.Optimizer":
         args = self.args
         print(f"Optimizer is {args.optimizer}")
-        if args.galore :
+        print(f"BCD mode: {args.use_bcd}")
+        if args.use_galore :
             galore_params = []
             for module_name, module in self.model.named_modules():
                 if not isinstance(module, nn.Linear):
@@ -44,64 +45,30 @@ class OurTrainer(Trainer):
                 galore_params.append(module.weight)
 
             id_galore_params = [id(p) for p in galore_params]
-            # make parameters without "rank" to another group
             regular_params = [p for p in self.model.parameters() if id(p) not in id_galore_params]
-            # then call galore_adamw
             param_groups = [{'params': regular_params}, 
                             {'params': galore_params, 'rank': args.galore_r, 'update_proj_gap': 50, 'scale': args.galore_alpha, 'proj_type': 'std'}]
             self.optimizer = GaLoreAdamW(param_groups, lr=args.learning_rate)
-        if args.optimizer == "bcd-optimizer" : 
-            # if args.optimizer == "adam" :
-            #     base_optimizer = Adam(self.model.parameters(), lr=args.learning_rate)
-            # elif args.optimizer == "sgd":
-            #     base_optimizer = SGD(self.model.parameters(), lr=args.learning_rate, momentum=args.momentum)
-            # elif args.optimizer == "adamw":
-            #     base_optimizer = AdamW(self.model.parameters(), lr=args.learning_rate)
-            # else : raise NotImplementedError("We only support 3 optimizers: adam, sgd and adamw. ")
-            
-            base_optimizer = AdamW(self.model.parameters(), lr=args.learning_rate)
-            # print(BlockCoordinateOptimizer.__module__)
-            # print(args.offload_optimizer_state)
-            print(args)
-            # print(self.model.config)
-            self.optimizer = BlockCoordinateOptimizer(
+        if args.use_bcd == True : 
+            if args.optim == "sgd":
+                base_optimizer = SGD(self.model.parameters(), lr=args.learning_rate, momentum=args.momentum)
+            elif args.optim == "adamw_hf":
+                base_optimizer = AdamW(self.model.parameters(), lr=args.learning_rate)
+            else : raise NotImplementedError("For BCD, we only support 2 optimizers: sgd and adamw_hf")
+            self.optimizer = BlockCoordinateDesentOptimizer(
                 base_optimizer=base_optimizer,
                 named_parameters_list=list(self.model.named_parameters()),
-                bcd_activated_layers=args.bcd_activated_layers,
-                bcd_interval_steps=args.bcd_interval_steps,
-                bcd_order=args.bcd_update_order,
-                block_target_attn=args.bcd_target_attn,
-                block_target_mlp=args.bcd_target_mlp,
-                block_target_non_linear=False,
-                only_layer=args.only_layer,
-                offload_optimizer_state=args.offload_optimizer_state,
-                grad_importance_exp = args.grad_importance_exp,
-                bcd_suffix_start_index = args.bcd_suffix_start_index,
-                device=self.model.device,
-                offload_rank=args.offload_rank,
-                offload_quantization_bit=args.offload_quantization_bit,
+                activated_layers=args.bcd_activated_layers,
+                interval_steps=args.bcd_interval_steps,
+                update_order=args.bcd_update_order,
                 granularity=args.granularity,
-                LRU=args.LRU,
+                sample_last=args.sample_last,
                 param_ratio_limit=args.param_ratio_limit,
-                hidden_size=self.model.config.hidden_size,
-                module_target=args.module_target,
-                testing_memory = args.testing_memory, 
+                G_clip = args.G_clip,
                 include_embedding_and_lm_head=args.include_embedding_and_lm_head,
                 mix_lora = args.mix_lora,
-                bandit_eta=args.bandit_eta
+                misa_eta=args.misa_eta, 
             )
-        elif args.optimizer == "adam":
-            self.optimizer = Adam(self.model.parameters(), lr=args.learning_rate)
-        elif args.optimizer == "sgd":
-            self.optimizer = SGD(self.model.parameters(), lr=args.learning_rate, momentum=args.momentum)
-        elif args.optimizer == "adamw":
-            # for n, p in self.model.named_parameters() :
-            #     if "1" not in n:
-            #         p.requires_grad = False
-            #     else:
-            #         p.requires_grad = True
-            self.optimizer = AdamW(self.model.parameters(), lr=args.learning_rate)
-        else : raise NotImplementedError("We only support 3 optimizers: adam, sgd and adamw. ")
                 
         return super().create_optimizer()
 

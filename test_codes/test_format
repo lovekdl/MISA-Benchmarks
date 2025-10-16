@@ -1,0 +1,27 @@
+def generate_prompt(data_point, with_answer=True):
+    instruction_block = f"""Below is an instruction that describes a task{" , paired with an input that provides further context" if data_point["input"] else ""}. Write a response that appropriately completes the request.  
+"""
+    instruction_text = f"""
+### Instruction:
+{data_point["instruction"]}
+"""
+
+    input_text = f"""
+### Input:
+{data_point["input"]}
+""" if data_point["input"] else ""
+
+    if with_answer:
+        response_text = f"""
+### Response:
+{data_point["output"]}"""
+    else:
+        response_text = """
+### Response:\n"""
+
+    return instruction_block + instruction_text + input_text + response_text
+
+
+data_point = {'instruction':"Follow the instruction.", "input":"1+1=?", "output":"equal to 2"}
+prompt = generate_prompt(data_point)
+print(prompt)

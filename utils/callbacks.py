@@ -35,15 +35,13 @@ class MemoryTimeConsumptionCallback(transformers.TrainerCallback) :
         control.should_log = flag
         wandb.log({"peak_mem": max_memory_allocated / 1024 ** 3,
                     "step_consumption": train_step_duration * 1000})
-        
-
         if self.mem_record:
             self.mem_list.append(max_memory_allocated / 1024 ** 3)
             print(self.mem_list)
 
 
 class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
-    def __init__(self, trainer, model, tokenizer, test_dataset, dataset_name, eval_strategy, args) -> None:
+    def __init__(self, model, tokenizer, test_dataset, dataset_name, output_dir, trainer=None) -> None:
         super().__init__()
         self.model = model
         self.tokenizer = tokenizer
@@ -52,36 +50,18 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
             test_dataset = {dataset_name: test_dataset}
         self.test_dataset = test_dataset
         self.dataset_name = dataset_name
-        self.args = args
+        self.output_dir = output_dir
         self.trainer = trainer 
-        self.eval_strategy = eval_strategy
 
-        self.save_file =  f"{self.args.output_dir}"
-        print("save_file path is", self.save_file)
+        self.save_file =  f"{self.output_dir}"
         self.batches = {}
         self.epoch = 0
         for n, d in test_dataset.items() :
 
             self.batches[n] = self.create_batch(d, args.per_device_eval_batch_size if args.per_device_eval_batch_size else 1 )
         
-
-
-    def on_epoch_end(self, args, state, control, **kwargs):
-        if args.every_epoch_eval and self.eval_strategy == "epoch":
-            self.evaluate() 
-        
     def on_train_end(self, args, state, control, **kwargs):
-        self.trainer.save_model()
-        if not args.every_epoch_eval and self.eval_strategy == "epoch":
-            self.evaluate()
-
-    def on_step_end(self, args, state, control, **kwargs):
-
-        # self.evaluate()
-        if self.eval_strategy != 'steps' :
-            return
-        if state.global_step % self.args.eval_steps :
-            return
+        self.evaluate()
     
     def evaluate(self) :
         self.model.eval()
@@ -142,19 +122,9 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
     def batch_generate(
             self,
             data, 
-            # temperature=0.1,
-            # top_p=0.75,
-            # top_k=40,
-            # num_beams=4,
             max_new_tokens=64,
             **kwargs,
     ):
-        # prompts = [generate_prompt(instruction, input) for instruction in instructions]
-        # inputs = tokenizer(prompts, return_tensors="pt", padding=True)
-        # print(data)
-        # print(data)
-        # for x in data["input_ids"]:
-        #     print(x, len(x))
         input_ids = data["input_ids"]
         encoded_input = self.tokenizer.pad(
                 {"input_ids": input_ids}, 
@@ -186,11 +156,7 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
             )
         s = generation_output.sequences
         outputs = self.tokenizer.batch_decode(s, skip_special_tokens=True)
-        print("outputs:", outputs)
-        print()
         outputs = [o.split("### Response:")[1].strip() if len(o.split("### Response:")) > 1 else "" for o in outputs]
-        print("outputs:", outputs)
-        print()
         return outputs
 
 
@@ -239,44 +205,22 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
 
 
 class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
-    def __init__(self, trainer, model, tokenizer, test_dataset, dataset_name, eval_strategy, args) -> None:
+    def __init__(self, model, tokenizer, test_dataset, dataset_name, output_dir, trainer=None) -> None:
         super().__init__()
         self.model = model
         self.tokenizer = tokenizer
         self.test_dataset = test_dataset
         self.dataset_name = dataset_name
-        self.args = args
+        self.output_dir = output_dir
         self.trainer = trainer 
-        self.eval_strategy = eval_strategy
 
-        self.save_file =  f"{self.args.output_dir}"
+        self.save_file =  f"{self.output_dir}"
         self.batches = {}
         self.epoch = 0
         for n, d in test_dataset.items() :
-
             self.batches[n] = self.create_batch(d, args.per_device_eval_batch_size if args.per_device_eval_batch_size else 1 )
         
-
-
-    def on_epoch_end(self, args, state, control, **kwargs):
-        if args.every_epoch_eval:
-            self.evaluate() 
-        
     def on_train_end(self, args, state, control, **kwargs):
-        self.trainer.save_model()
-        if not args.every_epoch_eval:
-            self.evaluate()
-
-    # def on_train_begin(self, args, state, control, **kwargs):
-    #     self.evaluate()
-    #     exit(0)
-    def on_step_end(self, args, state, control, **kwargs):
-
-        # self.evaluate()
-        if self.eval_strategy != 'steps' :
-            return
-        if state.global_step % self.args.eval_steps :
-            return
         self.evaluate()
     
     def evaluate(self) :
@@ -342,19 +286,9 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
     def batch_generate(
             self,
             data, 
-            # temperature=0.1,
-            # top_p=0.75,
-            # top_k=40,
-            # num_beams=4,
             max_new_tokens=512,
             **kwargs,
     ):
-        # prompts = [generate_prompt(instruction, input) for instruction in instructions]
-        # inputs = tokenizer(prompts, return_tensors="pt", padding=True)
-        # print(data)
-        # print(data)
-        # for x in data["input_ids"]:
-        #     print(x, len(x))
         input_ids = data["input_ids"]
         encoded_input = self.tokenizer.pad(
                 {"input_ids": input_ids}, 
@@ -367,7 +301,6 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
         input_ids = input_ids.to(device)
         attention_mask = attention_mask.to(device)
 
-        # print(len(input_ids))
         generation_config = GenerationConfig(
             temperature=0.1,
             attention_mask=attention_mask,

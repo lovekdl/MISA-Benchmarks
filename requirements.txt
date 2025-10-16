@@ -2,7 +2,7 @@ peft
 torch
 fire
 datasets
-transformers
+transformers==4.48.0
 fire
 wandb
 sentencepiece

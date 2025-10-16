@@ -29,7 +29,7 @@ from pept_utils import training_utils, args_utils
 from pept_utils.dataloader import PreprocessedIterableDataset
 from pept_utils.modeling_llama import LlamaForCausalLM
 
-from src.optimizer.block_coordinate_optimizer import BlockCoordinateOptimizer
+from src.optimizer.block_coordinate_optimizer import BlockCoordinateDesentOptimizer
 
 transformers.logging.set_verbosity_error()
 
@@ -377,7 +377,7 @@ def main(args):
         optimizer = torch.optim.AdamW(trainable_params, lr=args.lr, betas=(args.beta1,args.beta2), eps=args.eps, weight_decay=args.weight_decay)
     elif args.optimizer.lower() == "bcd-optimizer":
         base_optimizer = torch.optim.AdamW(trainable_params, lr=args.lr, betas=(args.beta1,args.beta2), eps=args.eps, weight_decay=args.weight_decay)
-        optimizer = BlockCoordinateOptimizer(
+        optimizer = BlockCoordinateDesentOptimizer(
                 base_optimizer=base_optimizer,
                 named_parameters_list=list(model.named_parameters()),
                 bcd_activated_layers=args.bcd_activated_layers,

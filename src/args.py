@@ -4,124 +4,132 @@ from dataclasses import dataclass, field
 from transformers import TrainingArguments
 @dataclass
 class CustomizedTrainingArguments(TrainingArguments) :
-    # optimizer : str = 'adamw'
-    optimizer: Optional[str] = field(
-        default='adamw',
-        metadata = {
-            "help": ""
-        },
+    # Data
+    dataset_path: Optional[str] = field(
+        default=None, metadata={"help": "The path of the dataset to use ."}
     )
-    grad_importance_exp: Optional[float] = field(
-        default=1,
-        metadata = {
-            "help": ""
-        },
+    task_name: str = field(
+        default=None, metadata={"help": "Task name."}
     )
-
-    bcd_activated_layers: Optional[int] = field(
-        default=1,
-        metadata = {
-            "help": ""
-        },
-    )
-
-    bcd_interval_steps: Optional[int] = field(
-        default=30,
-        metadata = {
-            "help": ""
-        },
-    )
-    bcd_update_order: Optional[str] = field(
-        default='ascending',
-        metadata = {
-            "help": ""
-        },
-    )
-    bcd_target_attn: bool = field(
-        default=True,
-        metadata={"help": ""},
-    )
-    bcd_target_mlp: bool = field(
-        default=True,
-        metadata={"help": ""},
-    )
-    bcd_base_optimizer:str = field(
-        default='adamw',
-        metadata={"help": ""},
-    )
-    granularity:str = field(
-        default='layer',
-        metadata={"help": ""},
-    )
-    only_layer:Optional[int] = field(
-        default=-1,
-        metadata={"help": ""},
-    )
-    offload_optimizer_state:Optional[bool] = field(
-        default=False,
-        metadata={"help": ""}
-    )
-    bcd_suffix_start_index:Optional[int] = field(
-        default=0,
-        metadata={"help": ""} ,
-    )
-    offload_rank:Optional[int]=field(
-        default=-1,
-        metadata={"help":""},
-    )
-    offload_quantization_bit:Optional[int]=field(
-        default=-1,
-        metadata={"help":""},
-    )
-    param_ratio_limit: Optional[float] = field(
-        default=1,
-        metadata={"help":""}
-    )
-    LRU: Optional[int] = field(
-        default=0,
-        metadata={"help":""}
-    )
-    normalization_type: str = field(
-        default="L-norm",
-        metadata={"help":""}
-    )
-    module_target: str = field(
-        default="all",
-        metadata={"help":""}
-    )
-    testing_memory: str = field(
-        default='n',
-        metadata={"help":"y or n"}
-    )
-    every_epoch_eval: bool = field(
-        default=False,
+    max_seq_length: int = field(
+        default=512,
         metadata={
-            "help": "Will use the token generated when running `transformers-cli login` (necessary to use this script "
-                    "with private models)."
+            "help": "The maximum total input sequence length after tokenization. Sequences longer "
+                    "than this will be truncated, sequences shorter will be padded."
         },
     )
-    mix_lora:bool=field(
-        default=False,
+    validation_samples : Optional[int] = field(
+        default=0,
         metadata={
-            "help": ""
-        },
+            "help": "The number of validation data samples."
+        }
     )
-    bandit_eta:float=field(
-        default=1.0,
-        metadata= {
-            "help":""
-        },
+    evaluate_at_last : Optional[bool] = field(
+        default=True,
+        metadata={
+            "help": "For commonsense reasoning and math reasoning tasks, whether the accuracy on all datasets is evaluated when training is finished."
+        }
     )
 
+    # Model and tokenizer
+    model_name_or_path: str = field(
+        default="meta-llama/Llama-2-7b-hf",
+        metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
+    )
+    tokenizer_name_or_path: Optional[str] =field(
+        default=None, 
+        metadata={"help": "Path to tokenizer."}
+    )
+    use_fast_tokenizer: bool = field(
+        default=True,
+        metadata={"help": "Whether to use one of the fast tokenizer (backed by the tokenizers library) or not."},
+    )
     load_type:str=field(
         default="fp16",
         metadata= {
-            "help":""
+            "help":"",
+            "choices": ["fp16", "bf16", "fp32"],
         }
     )
     save_model_at_last:bool=field(
         default=True,
         metadata={"help":""}
+    )
+    include_embedding_and_lm_head: Optional[bool] = field(
+        default=False,
+        metadata= {"help": "lisa or not"}
+    )
+
+    # LoRA parameters
+    use_lora: bool = field(
+        default=False,
+        metadata={"help": "Whether to use lora finetuning"},
+    )
+    lora_r: Optional[int] = field(
+        default=8,
+        metadata={"help": "rank of lora"},
+    )
+    lora_alpha: Optional[int] = field(
+        default=16,
+        metadata={"help": "scaling = alpha / r"},
+    )
+    lora_target: Optional[str] = field(
+        default='all',
+        metadata={"help": "lora target"},
+    )
+    use_dora:Optional[bool] = field(
+        default=False,
+        metadata={"help":"use dora finetuning."}
+    )
+
+    # Block Coordinate Descent Arguments
+    use_bcd: Optional[bool] = field(
+        default=False,
+
+    )
+    bcd_activated_layers: Optional[int] = field(
+        default=1,
+    )
+    bcd_interval_steps: Optional[int] = field(
+        default=50,
+    )
+    bcd_update_order: Optional[str] = field(
+        default='misa',
+        metadata={
+            "help": "The update order of the blocks.",
+            "choices":['ascending', 'random', 'descending', 'misa']
+        },
+    )
+    granularity:str = field(
+        default='layer',
+        metadata={
+            "help": "Whether a Transformer layer or a single inner module is treated as a block unit.",
+            "choices":['layer', 'module']
+        },
+    )
+    param_ratio_limit: Optional[float] = field(
+        default = 0.03,
+        metadata = {
+            "help":"The proportion of parameters to be sampled."
+        }
+    )
+    sample_last: Optional[int] = field(
+        default=0,
+        metadata={
+            "help": "In MISA algorithm, this specifies how many of the earliest unsampled blocks to sample."
+        }
+    )
+    misa_eta:float = field(
+        default = 1.0,
+        metadata = {
+            "help": "MISA's hyperparameter. When eta = 0, the sampling probability distribution is uniform."
+        },
+    )
+    G_clip:float=field(
+        default=5.0,
+        metadata= {
+            "help": "In MISA algorithm, G will be clipped to G_clip."
+        },
     )
 
     # Galore
@@ -129,7 +137,6 @@ class CustomizedTrainingArguments(TrainingArguments) :
         default=False,
         metadata={"help": "whether to use galore"},
     )
-    
     galore_r: Optional[int] = field(
         default=16,
         metadata={"help": "rank of galore"},
@@ -137,8 +144,4 @@ class CustomizedTrainingArguments(TrainingArguments) :
     galore_alpha: Optional[float] = field(
         default=1.0,
         metadata={"help": "alpha of galore"},
-    )
-    include_embedding_and_lm_head: Optional[bool] = field(
-        default=False,
-        metadata= {"help": "lisa or not"}
     )
