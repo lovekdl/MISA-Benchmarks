@@ -14,11 +14,10 @@ else:
     device = "cpu"
 
 class MemoryTimeConsumptionCallback(transformers.TrainerCallback) :
-    def __init__(self, trainer, mem_record=False) -> None:
+    def __init__(self, trainer) -> None:
         super().__init__()
         self.trainer = trainer
         self.mem_list = []
-        self.mem_record = mem_record
     def on_step_begin(self, args, state, control, **kwargs):
         self.start = time.time()
     def on_step_end(self, args, state, control, **kwargs):
@@ -35,9 +34,7 @@ class MemoryTimeConsumptionCallback(transformers.TrainerCallback) :
         control.should_log = flag
         wandb.log({"peak_mem": max_memory_allocated / 1024 ** 3,
                     "step_consumption": train_step_duration * 1000})
-        if self.mem_record:
-            self.mem_list.append(max_memory_allocated / 1024 ** 3)
-            print(self.mem_list)
+
 
 
 class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
@@ -53,7 +50,6 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
         self.output_dir = output_dir
         self.trainer = trainer 
 
-        self.save_file =  f"{self.output_dir}"
         self.batches = {}
         self.epoch = 0
         for n, d in test_dataset.items() :
@@ -101,12 +97,9 @@ class CommonsenseReasoningEvaluateCallback(transformers.TrainerCallback) :
                 print('---------------')
                 print(f'\r{name}_test:{idx + 1}/{total} | accuracy {correct}  {correct / current}')
                 print('---------------')
-                # os.makedirs(os.path.dirname(self.save_file + f"/{name}_eval.json"), exist_ok=True)
-                # with open(self.save_file + f"/{name}_eval.json", 'w+') as f:
-                #     json.dump(output_data, f, indent=4)
                 pbar.update(1)
             
-            result_dir = os.path.dirname(self.save_file + f"/{name}_eval_result.json")
+            result_dir = os.path.join(self.output_dir, f"{name}_eval_result.json")
             os.makedirs(result_dir, exist_ok=True)
             result = {f"{name}_accuracy": correct / current }
             with open(result_dir, 'w+') as f:
@@ -215,7 +208,6 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
         self.output_dir = output_dir
         self.trainer = trainer 
 
-        self.save_file =  f"{self.output_dir}"
         self.batches = {}
         self.epoch = 0
         for n, d in test_dataset.items() :
@@ -263,19 +255,15 @@ class MathReasoningEvaluateCallback(transformers.TrainerCallback) :
                     new_data['pred'] = predict
                     new_data['flag'] = flag
                     output_data.append(new_data)
-                    # print(data["instruction"])
-                    # print(output)
                     print('output:', output)
                     print('prediction:', predict)
                     print('label:', label)
                 print('---------------')
                 print(f'\rtest[{n}]:{idx + 1}/{total} | accuracy {correct}  {correct / current}')
                 print('---------------')
-                # with open(self.save_file + f"/{n}_eval", 'w+') as f:
-                #     json.dump(output_data, f, indent=4)
                 pbar.update(1)
 
-            result_dir = os.path.dirname(self.save_file + f"/{n}_eval_result.json")
+            result_dir = os.path.dirname(self.output_dir + f"/{n}_eval_result.json")
             os.makedirs(result_dir, exist_ok=True)
             result = {f"{n}_accuracy": correct / current }
             with open(result_dir, 'w+') as f:

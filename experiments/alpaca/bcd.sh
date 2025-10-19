@@ -1,3 +1,6 @@
+export CUDA_VISIBLE_DEVICES=0
+export WANDB_BASE_URL=https://api.bandw.top
+
 python -u experiments/alpaca/finetune.py \
     --model_name_or_path meta-llama/Meta-Llama-3-8B \
     --dataset_path vicgalle/alpaca-gpt4\

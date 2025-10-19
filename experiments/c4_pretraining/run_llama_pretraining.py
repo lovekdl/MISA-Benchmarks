@@ -14,7 +14,7 @@ import transformers
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 from transformers import LlamaForCausalLM as HF_LlamaForCausalLM
 from galore_torch import GaLoreAdamW
-# from src.clip_grad_norm import clip_grad_norm_for_sparse_tensor
+# from misa.clip_grad_norm import clip_grad_norm_for_sparse_tensor
 
 from types import MethodType
 # torch.nn.utils.clip_grad_norm_ = MethodType(clip_grad_norm_for_sparse_tensor)
@@ -29,7 +29,7 @@ from pept_utils import training_utils, args_utils
 from pept_utils.dataloader import PreprocessedIterableDataset
 from pept_utils.modeling_llama import LlamaForCausalLM
 
-from src.optimizer.block_coordinate_optimizer import BlockCoordinateDesentOptimizer
+from misa.optimizer.block_coordinate_optimizer import BlockCoordinateDesentOptimizer
 
 transformers.logging.set_verbosity_error()
 
@@ -538,7 +538,7 @@ def main(args):
         # add grad clipping
         if args.grad_clipping != 0.0: 
 
-            # from src.clip_grad_norm import clip_grad_norm_for_sparse_tensor
+            # from misa.clip_grad_norm import clip_grad_norm_for_sparse_tensor
             # clip_grad_norm_for_sparse_tensor(parameters=trainable_params, max_norm=args.grad_clipping)
 
             torch.nn.utils.clip_grad_norm_(trainable_params, args.grad_clipping)

@@ -1,6 +1,6 @@
-export WANDB_MODE="offline"
-
-python -u src/train.py \
+export CUDA_VISIBLE_DEVICES=0
+export WANDB_BASE_URL=https://api.bandw.top
+python -m misa.train \
     --model_name_or_path meta-llama/Llama-2-7b-hf \
     --dataset_path vicgalle/alpaca-gpt4\
     --task_name alpaca \
@@ -8,7 +8,6 @@ python -u src/train.py \
     --do_eval True\
     --per_device_train_batch_size 2 \
     --gradient_accumulation_steps 8 \
-    --per_device_eval_batch_size 8 \
     --eval_on_start True \
     --granularity module \
     --optim adamw_hf\
@@ -18,7 +17,7 @@ python -u src/train.py \
     --misa_eta 1.0 \
     --bcd_interval_steps 50 \
     --eval_steps 200 \
-    --seed 123 \
+    --seed 42 \
     --num_train_epochs 3 \
     --learning_rate 5e-5 \
     --lr_scheduler_type cosine\

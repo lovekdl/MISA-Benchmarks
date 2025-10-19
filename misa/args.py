@@ -85,13 +85,14 @@ class CustomizedTrainingArguments(TrainingArguments) :
     # Block Coordinate Descent Arguments
     use_bcd: Optional[bool] = field(
         default=False,
-
     )
     bcd_activated_layers: Optional[int] = field(
         default=1,
+        metadata={"help": "The number of layers to be activated."},
     )
     bcd_interval_steps: Optional[int] = field(
         default=50,
+        metadata={"help": "The interval steps to update the blocks."},
     )
     bcd_update_order: Optional[str] = field(
         default='misa',
@@ -110,19 +111,19 @@ class CustomizedTrainingArguments(TrainingArguments) :
     param_ratio_limit: Optional[float] = field(
         default = 0.03,
         metadata = {
-            "help":"The proportion of parameters to be sampled."
+            "help":"The ratio of parameters to be sampled."
         }
     )
     sample_last: Optional[int] = field(
         default=0,
         metadata={
-            "help": "In MISA algorithm, this specifies how many of the earliest unsampled blocks to sample."
+            "help": "In MISA algorithm, this specifies how many of the earliest unsampled blocks to be sampled."
         }
     )
     misa_eta:float = field(
         default = 1.0,
         metadata = {
-            "help": "MISA's hyperparameter. When eta = 0, the sampling probability distribution is uniform."
+            "help": "MISA's temperature parameter. When eta = 0, the sampling probability distribution is uniform."
         },
     )
     G_clip:float=field(

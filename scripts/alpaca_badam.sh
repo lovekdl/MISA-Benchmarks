@@ -1,3 +1,5 @@
+export CUDA_VISIBLE_DEVICES=1
+export WANDB_BASE_URL=https://api.bandw.top
 python -u src/train.py \
     --model_name_or_path meta-llama/Llama-2-7b-hf \
     --dataset_path vicgalle/alpaca-gpt4\
@@ -6,17 +8,16 @@ python -u src/train.py \
     --do_eval True\
     --per_device_train_batch_size 2 \
     --gradient_accumulation_steps 8 \
-    --per_device_eval_batch_size 8 \
     --eval_on_start True \
-    --granularity module \
-    --optim adamw\
-    --bcd_update_order misa \
-    --LRU 2 \
+    --granularity layer \
+    --optim adamw_hf\
+    --bcd_update_order ascending \
+    --bcd_activated_layers 1 \
     --bcd_interval_steps 50 \
-    --eval_steps 50 \
-    --seed 123 \
+    --eval_steps 200 \
+    --seed 42 \
     --num_train_epochs 3 \
-    --learning_rate 1e-6 \
+    --learning_rate 5e-5 \
     --lr_scheduler_type cosine\
     --max_seq_length 512 \
     --logging_steps 1 \
@@ -24,6 +25,5 @@ python -u src/train.py \
     --eval_strategy steps \
     --save_strategy no \
     --overwrite_output_dir \
-    --output_dir result/lora/test  \
+    --output_dir result/alpaca/badam/  \
     --report_to wandb \
-    --pad_to_max_length False \

@@ -5,9 +5,9 @@ import transformers
 from datasets import load_dataset
 import wandb
 from dataclasses import dataclass, field
-from src.custom_trainer import OurTrainer
-from src.args import CustomizedTrainingArguments
-from src.callbacks import MemoryTimeConsumptionCallback, MathReasoningEvaluateCallback, CommonsenseReasoningEvaluateCallback
+from misa.custom_trainer import CustomizedTrainer
+from misa.args import CustomizedTrainingArguments
+from misa.callbacks import MemoryTimeConsumptionCallback, MathReasoningEvaluateCallback, CommonsenseReasoningEvaluateCallback
 from peft import (  # noqa: E402
     LoraConfig, 
     TaskType, 
@@ -31,7 +31,7 @@ from transformers import (
     default_data_collator,
     set_seed,
 )
-from src.args import CustomizedTrainingArguments
+from misa.args import CustomizedTrainingArguments
 import datetime
 
 
@@ -74,7 +74,6 @@ def main() :
     if args.task_name is None:
         args.task_name = args.dataset_path
     run_name = generate_tag(args)
-    # args.output_dir = f"save/{run_name}/{datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')}/"
     
     wandb.init(project=f"test_{args.task_name}", name=run_name)
     set_seed(args.seed)
@@ -94,10 +93,10 @@ def main() :
         config=config,
         torch_dtype=load_type,
     )
+    
     if ("llama" in args.model_name_or_path.lower()) or ("mistral" in args.model_name_or_path.lower()):
         tokenizer.pad_token_id = 0
     tokenizer.padding_side = "left" 
-
 
     if args.use_dora :
         args.use_lora = True
@@ -134,7 +133,7 @@ def main() :
             lora_target = [name.strip() for name in lora_target.split(",")]
         if lora_target[0] == "all":
             lora_target = find_all_linear_modules(model)
-        # logger.info(f"All linear modules: {find_all_linear_modules(model)}")
+
         print(f"lora_target : {lora_target}")
         peft_kwargs = {
             "r": args.lora_r,
@@ -143,14 +142,14 @@ def main() :
             "lora_dropout": 0.05,
         }
         lora_config = LoraConfig(
-                task_type=TaskType.CAUSAL_LM,
-                inference_mode=False,
-                use_dora=args.use_dora,
-                **peft_kwargs,
-            )
+            task_type=TaskType.CAUSAL_LM,
+            inference_mode=False,
+            use_dora=args.use_dora,
+            **peft_kwargs,
+        )
         model = get_peft_model(model, lora_config)
     
-    def tokenize( prompt, add_eos_token=True):
+    def tokenize(prompt, add_eos_token=True):
         result = tokenizer(
             prompt,
             truncation=True,
@@ -224,9 +223,13 @@ def main() :
     print(f"trainable_params: {trainable_params}, total_params: {total_params}")
 
     data = load_dataset(args.dataset_path)
-    split_data = data["train"].train_test_split(test_size=args.validation_samples, seed=args.seed)
-    train_data = split_data["train"].shuffle(seed=args.seed).map(generate_and_tokenize_prompt)
-    valid_data = split_data["test"].shuffle(seed=args.seed).map(generate_and_tokenize_prompt)
+    if args.validation_samples > 0:
+        split_data = data["train"].train_test_split(test_size=args.validation_samples, seed=args.seed)
+        train_data = split_data["train"].shuffle(seed=args.seed).map(generate_and_tokenize_prompt)
+        valid_data = split_data["test"].shuffle(seed=args.seed).map(generate_and_tokenize_prompt)
+    else:
+        train_data = data["train"].shuffle(seed=args.seed).map(generate_and_tokenize_prompt)
+        valid_data = None
 
     # Load test dataset for math reasoning and commmonsense reasoning tasks
     test_data = {}
@@ -235,14 +238,16 @@ def main() :
             test_names = ['AQuA', 'mawps', 'GSM8K', 'SVAMP']
         elif args.task_name == 'commonsense':
             test_names = ['piqa', 'openbookqa', 'boolq', 'siqa', 'hellaswag', 'winogrande', 'ARC-Easy', 'ARC-Challenge']
+        elif args.task_name == 'alpaca':
+            test_names = []
         for n in test_names:
-            test_d = load_dataset(f'datasets/{n}')
-            test_data[n] = test_d["test"].shuffle(seed=args.seed).map(
+            data = load_dataset(f'datasets/{n}')
+            test_data[n] = data["test"].shuffle(seed=args.seed).map(
                 generate_and_tokenize_prompt,
                 fn_kwargs={"with_answer" : False}
             )
 
-    trainer = OurTrainer(
+    trainer = CustomizedTrainer(
         model=model,
         args=args,
         train_dataset=train_data if args.do_train else None,
@@ -252,7 +257,7 @@ def main() :
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),
     )
-    trainer.add_callback(MemoryTimeConsumptionCallback(trainer, mem_record=args.testing_memory))
+    trainer.add_callback(MemoryTimeConsumptionCallback(trainer))
     if args.task_name == 'math' and args.evaluate_at_last :  
         trainer.add_callback(
             MathReasoningEvaluateCallback(

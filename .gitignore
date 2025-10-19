@@ -4,21 +4,14 @@ build/
 
 results/
 result/
+eval/
+eval_results/
 wandb/
 checkpoints/
-
-nohup.out/
-save/
 c4/
 datasets/C4/
 
-roberta-superglue/
-
-FastChat/
-
-DoRA/
-
-eval/
-eval_results/
+nohup.out/
+save/
 
 logs/

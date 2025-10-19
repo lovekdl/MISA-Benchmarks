@@ -12,8 +12,8 @@ from galore_torch import GaLoreAdamW
 from transformers.utils import (
     logging,
 )
-from src.optimizer import BlockCoordinateDesentOptimizer
-from src.clip_grad_norm import clip_grad_norm_for_sparse_tensor
+from misa.optimizer import BlockCoordinateDesentOptimizer
+from misa.clip_grad_norm import clip_grad_norm_for_sparse_tensor
 from types import MethodType
 
 DEFAULT_CALLBACKS = [DefaultFlowCallback]
@@ -21,7 +21,7 @@ DEFAULT_PROGRESS_CALLBACK = ProgressCallback
 
 logger = logging.get_logger(__name__)
 
-class OurTrainer(Trainer):
+class CustomizedTrainer(Trainer):
 
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
