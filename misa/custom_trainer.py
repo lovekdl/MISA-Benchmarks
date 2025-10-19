@@ -25,13 +25,12 @@ class CustomizedTrainer(Trainer):
 
     def __init__(self,  *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.args.optimizer == 'bcd-optimizer':
+        if self.args.use_bcd :
             self.accelerator.clip_grad_norm_ = MethodType(clip_grad_norm_for_sparse_tensor, self.accelerator)
     
     def create_optimizer(self) -> "torch.optim.Optimizer":
         args = self.args
-        print(f"Optimizer is {args.optimizer}")
-        print(f"BCD mode: {args.use_bcd}")
+        print(f"Optimizer is {args.optim}")
         if args.use_galore :
             galore_params = []
             for module_name, module in self.model.named_modules():
@@ -55,6 +54,7 @@ class CustomizedTrainer(Trainer):
             elif args.optim == "adamw_hf":
                 base_optimizer = AdamW(self.model.parameters(), lr=args.learning_rate)
             else : raise NotImplementedError("For BCD, we only support 2 optimizers: sgd and adamw_hf")
+            print(f"Creating BCD optimizer...")
             self.optimizer = BlockCoordinateDesentOptimizer(
                 base_optimizer=base_optimizer,
                 named_parameters_list=list(self.model.named_parameters()),

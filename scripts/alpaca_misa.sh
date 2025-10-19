@@ -11,10 +11,12 @@ python -m misa.train \
     --eval_on_start True \
     --granularity module \
     --optim adamw_hf\
+    --use_bcd True \
     --bcd_update_order misa \
     --param_ratio_limit 0.03 \
     --sample_last 2 \
     --misa_eta 1.0 \
+    --validation_samples 500 \
     --bcd_interval_steps 50 \
     --eval_steps 200 \
     --seed 42 \

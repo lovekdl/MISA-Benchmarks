@@ -18,13 +18,13 @@ class CustomizedTrainingArguments(TrainingArguments) :
                     "than this will be truncated, sequences shorter will be padded."
         },
     )
-    validation_samples : Optional[int] = field(
+    validation_samples: Optional[int] = field(
         default=0,
         metadata={
             "help": "The number of validation data samples."
         }
     )
-    evaluate_at_last : Optional[bool] = field(
+    evaluate_at_last: Optional[bool] = field(
         default=True,
         metadata={
             "help": "For commonsense reasoning and math reasoning tasks, whether the accuracy on all datasets is evaluated when training is finished."
@@ -132,9 +132,13 @@ class CustomizedTrainingArguments(TrainingArguments) :
             "help": "In MISA algorithm, G will be clipped to G_clip."
         },
     )
+    mix_lora:bool = field(
+        default=False,
+        metadata={"help": "whether to mix lora"},
+    )
 
     # Galore
-    galore:bool = field(
+    use_galore:bool = field(
         default=False,
         metadata={"help": "whether to use galore"},
     )

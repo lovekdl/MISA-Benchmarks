@@ -1,11 +1,12 @@
 export CUDA_VISIBLE_DEVICES=2
 export WANDB_BASE_URL=https://api.bandw.top
-python -u src/train.py \
+python -u misa/train.py \
     --model_name_or_path meta-llama/Llama-2-7b-hf \
     --dataset_path vicgalle/alpaca-gpt4\
     --task_name alpaca \
     --do_train True \
     --do_eval True\
+    --use_bcd True \
     --per_device_train_batch_size 2 \
     --gradient_accumulation_steps 8 \
     --eval_on_start True \
@@ -15,6 +16,7 @@ python -u src/train.py \
     --include_embedding_and_lm_head True \
     --bcd_activated_layers 1 \
     --bcd_interval_steps 50 \
+    --validation_samples 500 \
     --eval_steps 200 \
     --seed 42 \
     --num_train_epochs 3 \

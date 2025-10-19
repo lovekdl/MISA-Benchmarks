@@ -22,11 +22,12 @@ class BlockCoordinateDesentOptimizer(Optimizer):
         param_ratio_limit = 0.03, 
         sample_last = 2, 
         G_clip = 5,  
+        mix_lora = False,
     ):
         
         self.granularity = granularity
         self.module_names = []
-        self.mix_lora = False
+        self.mix_lora = mix_lora
         for name, param in named_parameters_list:
             if "lora" in name:
                 self.mix_lora = True
@@ -68,6 +69,9 @@ class BlockCoordinateDesentOptimizer(Optimizer):
         self.lp_to_hp = {}
         self.layers_param_number = [0] * self.total_layers
         self.layer_selected_times = [0] * self.total_layers
+        self.embed_param_number = 0
+        self.lm_head_param_number = 0
+        self.calculate_param_numbers(named_parameters_list)
 
         self.param_groups = base_optimizer.param_groups
         self.state_dict = base_optimizer.state_dict
@@ -79,7 +83,7 @@ class BlockCoordinateDesentOptimizer(Optimizer):
 
         
         self.sample_last = sample_last
-        self.last_used = [0] * self.total_layers
+        self.last_used = [-1] * self.total_layers
         self.G = [0] * self.total_layers
         self.G_cur = [0] * self.total_layers
 
@@ -125,6 +129,25 @@ class BlockCoordinateDesentOptimizer(Optimizer):
         return block_prefix_list, other_params
     
 
+    def calculate_param_numbers(self, named_param_list) :
+        embed_pattern = r'.*embed[^.]*\.'
+        import re
+
+        self.current_grad_norms = [[] for _ in range(self.total_layers)]
+        for name, param in self.named_parameters_list:
+            is_layer_param = False
+            for i in range(self.total_layers) :
+                if(self.block_prefix_list[i][0] in name) :
+                    self.layers_param_number[i] += param.numel()
+                    is_layer_param = True
+                    break
+            if not is_layer_param :
+                if re.findall(embed_pattern, name):
+                    self.embed_param_number += param.numel()
+                elif "lm_head" in name:
+                    self.lm_head_param_number += param.numel()
+        
+
 
     def load_state_dict(self, state_dict: Dict[str, torch.Tensor]) -> None:
         return self.base_optimizer.load_state_dict(state_dict)
@@ -148,9 +171,10 @@ class BlockCoordinateDesentOptimizer(Optimizer):
         self._clean_hp_grad()
         self.skip_nan = False
         self.global_step += 1
-        torch.cuda.empty_cache()
-        if (self.global_step + 1) % self.interval_steps == 0 or ("misa" in self.update_order and (0 in self.last_used)):
+        if self.global_step  % self.interval_steps == 0 or ("misa" in self.update_order and (-1 in self.last_used)):
             self.update_trainable_params()
+        
+        torch.cuda.empty_cache()
 
     def _clean_hp_grad(self) -> None:
         for hp_param in self.param_idx2hp.values():
@@ -201,14 +225,15 @@ class BlockCoordinateDesentOptimizer(Optimizer):
         weights = list(weights)
         choosed_ratio = 0.0
         if self.granularity == "module" :
-            k = 10000000
+            k = 1000
         else :
             self.param_ratio_limit = 1
         selected = []
         w = [(x, id) for id, x in enumerate(self.last_used)]
         w = sorted(w, key=lambda item: item[0])
         for i in range(self.total_layers) :
-            if (w[i][0] == 0 or i < self.sample_last) and k > 0:
+            if (w[i][0] == -1 or i < self.sample_last) and k > 0:
+                print(f"choosed_ratio: {choosed_ratio}, layers_param_number: {self.layers_param_number[w[i][1]]}, total_params_num: {self.total_params_num}, self.param_ratio_limit: {self.param_ratio_limit}")
                 if choosed_ratio + self.layers_param_number[w[i][1]] / self.total_params_num <= self.param_ratio_limit:
                     choosed_ratio += self.layers_param_number[w[i][1]] / self.total_params_num
                     selected.append(w[i][1])
@@ -227,7 +252,7 @@ class BlockCoordinateDesentOptimizer(Optimizer):
             del weights[index]
         return selected
 
-    def update_trainable_params(self) -> None:
+    def update_trainable_params(self) :
         self.last_active_layers_indices=self.active_layers_indices
 
         if self.update_order == "random" :
@@ -294,7 +319,7 @@ class BlockCoordinateDesentOptimizer(Optimizer):
         self.active_param_prefixs = []
         for i in self.active_layers_indices :
             self.active_param_prefixs.append(self.block_prefix_list[i][0])
-            self.last_used[i] = self.global_step+1
+            self.last_used[i] = self.global_step
         active_param_groups = [
             {
                 "params": [],
